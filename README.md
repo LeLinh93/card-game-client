@@ -8,7 +8,17 @@ the match (Bot match: card-server's `botMatch`; Free match: the ranked queue) an
 area with threngine (`src/game/Engine3D.ts`). In the match (`src/game/Board3D.ts`), the back rows are laid out from the decks and the drawn cards
 fly to the hands, which are HTML over the 3D canvas. On your turn, drag a hand card onto the sphere to
 sacrifice it for a resource, or onto a glowing zone of your field to summon it; the counters by the
-decks show both sides' resources. The rest of the game comes next.
+decks show both sides' resources. Drag a field card that can attack onto an opponent's card (or
+onto their field once it is empty) to attack, hover your face-down structure to Activate it (or a card
+whose Active skill can still be used this turn, to use it), and
+click END TURN to end your turn. Hover a field card to read it on the left; a card whose skill goes
+off shows on the right. When a skill makes you pick cards, pick them where they are (the field or
+your hand) or from a list (deck, graveyard...); click a picked card again to let it go, then Confirm.
+
+Spells and abilities that need a target are aimed with a line from the hand (a hint at the top says what
+to target); the others are dropped on the board. Any card dropped on the sphere is sacrificed. Traps flip
+up when they go off, each deck shows how many cards are left, the skill log (top left) lists every skill
+that went off, and Surrender (top right) gives the match to the opponent.
 
 ## Run
 

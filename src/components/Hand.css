@@ -9,7 +9,7 @@
     pointer-events: none;
 }
 
-/* Each card shows down to just below its name (the name is 57-61% down the template) until hovered */
+/* Each card shows down to just below its name (the name is 57-61% down the template) */
 .hand-player {
     bottom: -89px;
 }
@@ -34,7 +34,6 @@
     width: 136px;
     height: 241px;
     margin: 0 -15px;
-    transform-origin: bottom center;
 }
 
 .hand-opponent .hand-card {
@@ -47,20 +46,34 @@
     visibility: hidden;
 }
 
-/* Hovered: big enough to read, and lifted until the whole card is on screen */
-.hand-player .hand-card:hover {
-    z-index: 10;
-    transform: translateY(-109px) scale(1.9);
+/* The hovered card is invisible but keeps its place and its hit area; its bigger copy is shown instead */
+.hand-card.previewed {
+    opacity: 0;
 }
 
-/* Keeps the lifted card hovered while the pointer stays where the card was */
-.hand-player .hand-card:hover::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 100%;
-    height: 110px;
+/* The bigger copy of the hovered card, fully on screen; the mouse goes through it */
+.hand-preview {
+    position: fixed;
+    z-index: 10;
+    pointer-events: none;
+    filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.7));
+}
+
+/* Picking cards from the hand for a skill: the others are dimmed, the picked ones raised */
+.hand-card.unpickable {
+    filter: brightness(0.45);
+    cursor: default;
+}
+
+.hand-card.pickable {
+    cursor: pointer;
+}
+
+.hand-card.picked {
+    transform: translateY(-28px);
+    outline: 3px solid #ffd27a;
+    border-radius: 10px;
+    box-shadow: 0 0 18px rgba(255, 190, 90, 0.8);
 }
 
 .hand-back {
@@ -82,10 +95,6 @@
         width: 72px;
         height: 128px;
         margin: 0 -10px;
-    }
-
-    .hand-player .hand-card:hover {
-        transform: translateY(-57px) scale(1.9);
     }
 
     .hand-player .hand-card .card-scale {

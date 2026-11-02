@@ -23,17 +23,18 @@
 }
 
 .match-leave {
-    z-index: 6;
+    z-index: 7;
     position: absolute;
     top: 16px;
-    left: 16px;
+    right: 16px;
 }
 
 .match-turn {
     position: absolute;
     top: 16px;
-    left: 110px;
+    left: 50%;
     z-index: 6;
+    transform: translateX(-50%);
     padding: 6px 18px;
     font-family: var(--font-display);
     font-size: 18px;
@@ -58,4 +59,165 @@
     .match-inspect .card-scale {
         zoom: 0.35 !important;
     }
+}
+
+/* On the player's face-down structure the pointer is over */
+.match-activate {
+    position: absolute;
+    z-index: 7;
+    transform: translate(-50%, -50%);
+    padding: 5px 14px;
+    font-size: 14px;
+    color: #fff;
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+}
+
+.match-activate:hover {
+    background: #111;
+}
+
+/* The line from an attacking card to the pointer */
+.match-aim {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.match-aim line {
+    stroke: rgba(255, 255, 255, 0.75);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 10 8;
+}
+
+.match-aim path {
+    fill: rgba(255, 255, 255, 0.75);
+}
+
+.match-aim line.aim-valid {
+    stroke: #ff4a3a;
+    stroke-dasharray: none;
+}
+
+.match-aim path.aim-valid {
+    fill: #ff4a3a;
+}
+
+/* The card whose skill just went off, on the right */
+.match-effect {
+    position: absolute;
+    top: 50%;
+    right: 24px;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(-50%);
+    pointer-events: none;
+    animation: effect-in 0.25s ease-out, effect-glow 1.2s ease-in-out;
+}
+
+.match-effect-label {
+    padding: 4px 14px;
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: #ffd9a0;
+    background: var(--panel);
+    border: 1px solid #ffcf8a;
+    border-radius: 14px;
+}
+
+@keyframes effect-in {
+    from { opacity: 0; transform: translate(30px, -50%); }
+}
+
+@keyframes effect-glow {
+    0%, 100% { filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.7)); }
+    30% { filter: drop-shadow(0 0 24px rgba(255, 190, 90, 0.95)); }
+}
+
+@media (max-width: 700px) {
+    .match-effect .card-scale {
+        zoom: 0.3 !important;
+    }
+}
+
+/* What a skill asks the player to pick on the field or in their hand, with the Confirm button */
+.match-pick {
+    position: absolute;
+    top: 64px;
+    left: 50%;
+    z-index: 8;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transform: translateX(-50%);
+    padding: 10px 12px 10px 20px;
+    font-family: var(--font-display);
+    font-size: 19px;
+    background: var(--panel);
+    border: 1px solid #ffcf8a;
+    border-radius: 12px;
+    box-shadow: 0 0 24px rgba(255, 170, 60, 0.35);
+    white-space: nowrap;
+}
+
+.match-pick button {
+    font-family: var(--font-body);
+    font-size: 15px;
+}
+
+@media (max-width: 700px) {
+    .match-pick {
+        top: 60px;
+        max-width: calc(100% - 32px);
+        white-space: normal;
+        font-size: 15px;
+    }
+}
+
+/* What an aimed spell or ability can target, while its line is dragged */
+.match-aim-hint {
+    padding: 10px 22px;
+    color: #bfefff;
+    border-color: #7fdcff;
+    box-shadow: 0 0 24px rgba(110, 210, 255, 0.4);
+    pointer-events: none;
+}
+
+/* The end of the match, over everything */
+.match-result {
+    z-index: 30;
+    background: rgba(0, 0, 0, 0.55);
+    pointer-events: auto;
+}
+
+.match-result-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 28px 48px;
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+}
+
+.match-result-text {
+    font-family: var(--font-display);
+    font-size: 44px;
+}
+
+.match-result-text.won {
+    color: #ffd27a;
+    text-shadow: 0 0 18px rgba(255, 190, 90, 0.6);
+}
+
+.match-result-text.lost {
+    color: #ff8a7a;
 }

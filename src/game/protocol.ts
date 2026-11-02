@@ -20,6 +20,11 @@ export interface GameCard{
     activeLeft:number[];
     summonSick:boolean;
     buffs:{name:string, source:string, [key:string]:any}[];
+    // Spell and ability cards in the player's hand: whether playing it needs a target, the ids of the
+    // field cards it can target now, and what to target ("Target an enemy Unit card")
+    needsTarget?:boolean;
+    targets?:string[];
+    targetHint?:string;
 }
 
 export interface PlayerState{
@@ -52,4 +57,14 @@ export interface DrawCardMessage{
 // A card the opponent can see: their hidden cards have no name
 export function isKnown(card:GameCard):boolean{
     return !!card && !!card.name;
+}
+
+// A skill asks the player to pick "amount" of these cards. "where" says where they are: myField,
+// oppoField, field (both), hand, deck or graveyard. The answer is a cardSelect message.
+export interface SelectionMessage{
+    selection:GameCard[];
+    amount:number;
+    message:string;
+    where?:string;
+    order:number;
 }

@@ -41,6 +41,41 @@ export function squareCanvas(imagePath:string):Promise<HTMLCanvasElement>{
     });
 }
 
+// A unit or structure on the field: its square picture with its attack, defense and health along
+// the bottom, as they are now
+export function fieldSquareCanvas(imagePath:string, stats:{attack:number, defense:number, health:number}):Promise<HTMLCanvasElement>{
+    return cached("field:" + imagePath + ":" + [stats.attack, stats.defense, stats.health].join("/"), async ()=>{
+        const picture = await squareCanvas(imagePath);
+        await document.fonts.ready;
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = SQUARE_SIZE;
+        const g = canvas.getContext("2d");
+        g.drawImage(picture, 0, 0);
+        const bar = Math.round(SQUARE_SIZE * 0.24);
+        g.fillStyle = "rgba(10, 12, 16, 0.78)";
+        g.fillRect(0, SQUARE_SIZE - bar, SQUARE_SIZE, bar);
+        // Attack, defense, health: each a coloured disc with its value
+        const discs:[number, string][] = [[stats.attack, "#d9822b"], [stats.defense, "#3f7fbf"], [stats.health, "#c0392b"]];
+        const y = SQUARE_SIZE - bar / 2;
+        discs.forEach(([value, color], i)=>{
+            const x = SQUARE_SIZE * (i + 0.5) / 3;
+            g.fillStyle = color;
+            g.beginPath();
+            g.arc(x, y, bar * 0.42, 0, Math.PI * 2);
+            g.fill();
+            g.font = "bold " + Math.round(bar * 0.55) + "px GWENT, Georgia, serif";
+            g.textAlign = "center";
+            g.textBaseline = "middle";
+            g.lineWidth = 5;
+            g.strokeStyle = "#000";
+            g.fillStyle = "#fff";
+            g.strokeText(String(value ?? 0), x, y + 2);
+            g.fillText(String(value ?? 0), x, y + 2);
+        });
+        return canvas;
+    });
+}
+
 // The middle square of a picture
 export function squareFrom(img:CanvasImageSource & {width:number, height:number}):HTMLCanvasElement{
     const canvas = document.createElement("canvas");
