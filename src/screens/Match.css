@@ -221,33 +221,3 @@
 .match-result-text.lost {
     color: #ff8a7a;
 }
-
-/* Resources on the disc by each deck, and the cards left on top of it: HTML over the board */
-.match-counter,
-.match-deck-count {
-    position: absolute;
-    z-index: 4;
-    transform: translate(-50%, -50%);
-    font-family: GWENT, Georgia, serif;
-    font-weight: bold;
-    line-height: 1;
-    color: #fff;
-    pointer-events: none;
-    user-select: none;
-}
-
-.match-counter {
-    -webkit-text-stroke: 1px #000;
-    text-shadow: 0 0 3px #000, 0 1px 2px #000;
-}
-
-.match-deck-count {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    background: rgba(8, 10, 14, 0.82);
-    border: 2px solid rgba(255, 210, 122, 0.85);
-    border-radius: 50%;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-}

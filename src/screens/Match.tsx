@@ -1,7 +1,7 @@
 import {PointerEvent, useEffect, useRef, useState} from "react";
 import "./Match.css";
 import {Engine3D} from "../game/Engine3D";
-import {Board3D, CounterSpots, Counters, DragKind, DropTarget, Row, Side} from "../game/Board3D";
+import {Board3D, DragKind, DropTarget, Row, Side} from "../game/Board3D";
 import {Connection} from "../game/connection";
 import {ActionQueue, wait} from "../game/actionQueue";
 import {DrawCardMessage, GameCard, isKnown, PlayerState, SelectionMessage, StartGameMessage, StateMessage} from "../game/protocol";
@@ -136,9 +136,6 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
     const [skillLog, setSkillLog] = useState<SkillLogEntry[]>([]);
     // The match is over: won or lost
     const [result, setResult] = useState<"won" | "lost">(null);
-    // Resources and cards left, shown in HTML over their spots on the board
-    const [counters, setCounters] = useState<Counters>(null);
-    const [counterSpots, setCounterSpots] = useState<CounterSpots>(null);
     // A skill summons a card: the player chooses a free zone for it, on their field or the opponent's
     const [placing, setPlacing] = useState<{card:GameCard, side:Side, zones:{row:Row, index:number}[]}>(null);
     const placeDone = useRef<()=>void>(null);
@@ -158,7 +155,6 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
             return el ? el.getBoundingClientRect() : null;
         });
         const c = new Connection();
-        b.onCounters = setCounters;
         board.current = b;
         connection.current = c;
         const queue = new ActionQueue();
@@ -387,8 +383,6 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
             if(!left){
                 setBackImage(b.backImage);
                 setLoaded(l => ({...l, scene:true}));
-                setCounters(b.counters);
-                setCounterSpots(b.counterSpots());
             }
         });
         const match = c.login(props.token).then(()=>c.findMatch(props.mode)).then(()=>{
@@ -488,23 +482,6 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
         pending.current = {action, cardID:card.id, timer};
         connection.current.send(action, data);
     }
-
-    // The counters follow the board when the window changes size
-    useEffect(()=>{
-        if(!loaded.scene || !mount.current){
-            return;
-        }
-        const observer = new ResizeObserver(()=>{
-            // The engine resizes its canvas on the same change: place the counters once it has
-            requestAnimationFrame(()=>{
-                if(board.current){
-                    setCounterSpots(board.current.counterSpots());
-                }
-            });
-        });
-        observer.observe(mount.current);
-        return ()=>{observer.disconnect()};
-    }, [loaded.scene]);
 
     // The zones show which field cards can be picked, and which are
     useEffect(()=>{
@@ -721,20 +698,6 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
 
     return(
         <div className="match-page" data-mode={props.mode}>
-            {counters && counterSpots ? (["player", "opponent"] as Side[]).map(side => [
-                counterSpots.resources[side] ? (
-                    <span key={"r" + side} className="match-counter" aria-label={(side === "player" ? "Your" : "Opponent's") + " resources"}
-                          style={{left:counterSpots.resources[side].x, top:counterSpots.resources[side].y, fontSize:counterSpots.resources[side].size * 0.62}}>
-                        {counters.resources[side]}
-                    </span>
-                ) : null,
-                counterSpots.deck[side] && counters.deck[side] !== null ? (
-                    <span key={"d" + side} className="match-deck-count" aria-label={(side === "player" ? "Your" : "Opponent's") + " cards left"}
-                          style={{left:counterSpots.deck[side].x, top:counterSpots.deck[side].y, width:counterSpots.deck[side].size, height:counterSpots.deck[side].size, fontSize:counterSpots.deck[side].size * 0.48}}>
-                        {counters.deck[side]}
-                    </span>
-                ) : null,
-            ]) : null}
             <div className="match-scene" ref={mount} onPointerMove={inspect} onPointerDown={startAttack}
                  onPointerLeave={(e)=>{
                      // Moving onto the Activate button keeps it, and the card shown on the left
