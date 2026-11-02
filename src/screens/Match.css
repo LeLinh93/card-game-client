@@ -11,6 +11,7 @@
 }
 
 .match-status {
+    z-index: 6;
     position: absolute;
     inset: 0;
     display: flex;
@@ -22,7 +23,22 @@
 }
 
 .match-leave {
+    z-index: 6;
     position: absolute;
     top: 16px;
     left: 16px;
+}
+
+.match-turn {
+    position: absolute;
+    top: 16px;
+    left: 110px;
+    z-index: 6;
+    padding: 6px 18px;
+    font-family: var(--font-display);
+    font-size: 18px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    pointer-events: none;
 }

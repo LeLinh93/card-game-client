@@ -3,9 +3,10 @@
 The web client for playing the card game, replacing the old Unity client. It talks to
 [card-server](../card-server) and draws cards with the same template as card-website.
 
-So far it has the login, a main menu and the deck editor. Choosing a mode and pressing Play opens
-the match, which loads the 3D play area with threngine (`src/game/Engine3D.ts`). Playing the match
-comes next.
+So far it has the login, a main menu and the deck editor. Choosing a mode and pressing Play starts
+the match (Bot match: card-server's `botMatch`; Free match: the ranked queue) and loads the 3D play
+area with threngine (`src/game/Engine3D.ts`). In the match, the drawn cards fly from the decks to the
+hands (`src/game/Board3D.ts`); the hands are HTML over the 3D canvas. The rest of the game comes next.
 
 ## Run
 

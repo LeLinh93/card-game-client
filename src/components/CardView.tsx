@@ -22,8 +22,11 @@ function CardDescription(props:{text:string}){
     )
 }
 
+// What the template shows; a card from the card list or one in a match
+export type CardFace = Pick<Card, "name" | "type" | "resources" | "description" | "header" | "attack" | "defense" | "health" | "imagePath">;
+
 // A card drawn on the card-website template. It is 400px wide; shrink it with the "scale" prop.
-export function CardView(props:{card:Card, scale?:number}){
+export function CardView(props:{card:CardFace, scale?:number}){
     const card = props.card;
     const stats = HAS_STATS.includes(card.type);
     return(

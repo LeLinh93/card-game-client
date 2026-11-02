@@ -24,6 +24,11 @@ export class Engine3D {
         return this._configurator;
     }
 
+    // The div the canvas fills
+    public get mount():HTMLDivElement{
+        return this._mount;
+    }
+
     public async initialize(mount:HTMLDivElement):Promise<void>{
         this._mount = mount;
         this._assetProvider = new AssetProvider(assetProviderConfig);

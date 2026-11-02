@@ -1,0 +1,100 @@
+/* The hands sit over the 3D canvas; only the cards themselves take the mouse */
+.hand {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+/* Each card shows down to just below its name (the name is 57-61% down the template) until hovered */
+.hand-player {
+    bottom: -105px;
+}
+
+.hand-opponent {
+    top: -70px;
+}
+
+.hand-card {
+    position: relative;
+    flex: none;
+    pointer-events: auto;
+    transition: margin 0.25s ease, transform 0.15s ease;
+}
+
+/* Cards overlap more as the hand grows */
+.hand-player .hand-card {
+    width: 160px;
+    height: 284px;
+    margin: 0 -18px;
+    transform-origin: bottom center;
+}
+
+.hand-opponent .hand-card {
+    width: 80px;
+    height: 142px;
+    margin: 0 -8px;
+}
+
+.hand-card.arriving {
+    visibility: hidden;
+}
+
+/* Hovered: bigger, and lifted until the whole card is on screen */
+.hand-player .hand-card:hover {
+    z-index: 10;
+    transform: translateY(-125px) scale(1.25);
+}
+
+/* Keeps the lifted card hovered while the pointer stays where the card was */
+.hand-player .hand-card:hover::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 110px;
+}
+
+.hand-back {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    user-select: none;
+}
+
+@media (max-width: 700px) {
+    .hand-player {
+        bottom: -47px;
+    }
+
+    .hand-player .hand-card {
+        width: 72px;
+        height: 128px;
+        margin: 0 -10px;
+    }
+
+    .hand-player .hand-card:hover {
+        transform: translateY(-57px) scale(1.25);
+    }
+
+    .hand-player .hand-card .card-scale {
+        zoom: 0.18 !important;
+    }
+
+    .hand-opponent .hand-card {
+        width: 48px;
+        height: 85px;
+        margin: 0 -6px;
+    }
+
+    .hand-opponent {
+        top: -40px;
+    }
+}

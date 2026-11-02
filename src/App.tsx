@@ -62,7 +62,7 @@ export function App(){
         return <Login onLogin={login} notice={notice}/>;
     }
     if(match){
-        return <Suspense><Match mode={match} onLeave={()=>{setMatch(null)}}/></Suspense>;
+        return <Suspense><Match mode={match} token={session.token} onLeave={()=>{setMatch(null)}}/></Suspense>;
     }
     return(
         <div className="app-shell">

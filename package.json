@@ -15,8 +15,10 @@
   },
   "dependencies": {
     "@viscircle-org/threngine": "^0.83.4",
+    "html-to-image": "^1.11.11",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
