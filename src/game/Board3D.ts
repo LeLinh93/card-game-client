@@ -62,7 +62,7 @@ const GLOW_WHITE = 0xbfe9ff;
 const GLOW_GOLD = 0xffc65a;
 const GLOW_RED = 0xff4a3a;
 const GLOW_SOFT = 0.5;
-// The disc with the number of cards left on top of each deck, in m
+// The badge with the number of cards left on top of each deck, in m
 const DECK_COUNTER_SIZE = 0.016;
 
 export type Side = "player" | "opponent";
@@ -72,6 +72,13 @@ export type DropTarget = {kind:"sphere"} | {kind:"zone", row:Row, index:number} 
 // aimed at (spells and abilities with a target); or onto the board (spells and abilities without).
 // Any of them can be dropped on the sphere to sacrifice it.
 export type DragKind = "summon" | "aim" | "cast";
+// The numbers shown over the board: each side's resources (on the disc by its deck) and cards left
+export interface Counters{
+    resources:Record<Side, number>;
+    deck:Record<Side, number>;
+}
+// Where those numbers go on screen, and how big their spot is (px)
+export type CounterSpots = Record<"resources" | "deck", Record<Side, {x:number, y:number, size:number}>>;
 
 interface Tween{
     start:number;
@@ -113,9 +120,11 @@ export class Board3D{
     private portals:Record<Side, Vector3> = {player:null, opponent:null};
     // The glow over the opponent's portal: off, open (the field is empty) or aimed at
     private portalGlow:{mesh:Mesh, level:number} = null;
-    private counters:Record<Side, {canvas:HTMLCanvasElement, texture:Texture, value:number}> = {player:null, opponent:null};
-    // The number of cards left, on top of each deck
-    private deckCounters:Record<Side, {canvas:HTMLCanvasElement, texture:Texture, value:number}> = {player:null, opponent:null};
+    // The counters are drawn in HTML over these spots of the board (see counterSpots); onCounters is
+    // told whenever a number changes
+    private counterValues:Counters = {resources:{player:0, opponent:0}, deck:{player:null, opponent:null}};
+    private counterAnchors:Record<"resources" | "deck", Record<Side, {point:Vector3, radius:number}>> = {resources:{player:null, opponent:null}, deck:{player:null, opponent:null}};
+    onCounters:(counters:Counters)=>void = null;
     private zones:Record<Side, Record<Row, Mesh[]>> = {player:{front:[], back:[]}, opponent:{front:[], back:[]}};
     private field:Record<Side, Record<Row, FieldCard[]>> = {player:{front:[], back:[]}, opponent:{front:[], back:[]}};
     // The card being dragged, then held over where it was dropped until the server answers
@@ -160,8 +169,8 @@ export class Board3D{
             const box = new Box3().setFromObject(this.scene.getObjectByName(DECKS[side]));
             // On top of the deck, a little above it so the counter by the deck stays visible
             this.decks[side] = box.getCenter(new Vector3()).setY(box.max.y + 0.002);
-            this.makeCounter(side);
-            this.makeDeckCounter(side, box);
+            this.findCounter(side);
+            this.counterAnchors.deck[side] = {point:box.getCenter(new Vector3()).setY(box.max.y), radius:DECK_COUNTER_SIZE / 2};
             (["front", "back"] as Row[]).forEach((row)=>{
                 for(let i = 0; i < 5; i++){
                     const zone = this.square(unlit({color:0xffffff, transparent:true, opacity:ZONE_OPACITY, depthWrite:false}));
@@ -404,90 +413,64 @@ export class Board3D{
 
     //resources------------------------------------------------------------------------------
 
-    private makeCounter(side:Side){
+    // The "24" next to the deck is 3D text: it is hidden, and the side's resources are shown on its disc
+    private findCounter(side:Side){
         const text = this.scene.getObjectByName(COUNTERS[side]);
         const face = this.scene.getObjectByName(COUNTER_FACES[side]);
-        if(!text || !face){
-            return;
+        if(text){
+            text.visible = false;
         }
-        text.visible = false;
-        const box = new Box3().setFromObject(face);
-        const size = box.getSize(new Vector3());
-        const canvas = document.createElement("canvas");
-        canvas.width = canvas.height = 128;
-        const texture = this.texture(canvas);
-        // Unlike the models' textures, a three.js plane's expects the picture flipped
-        texture.flipY = true;
-        const label = new Mesh(new PlaneGeometry(size.x, size.z), unlit({map:texture, transparent:true, depthWrite:false}));
-        label.rotation.x = -Math.PI / 2;
-        label.position.copy(box.getCenter(new Vector3())).setY(box.max.y + 0.0004);
-        this.scene.add(label);
-        this.counters[side] = {canvas, texture, value:null};
-        this.setResources(side, 0);
+        if(face){
+            const box = new Box3().setFromObject(face);
+            this.counterAnchors.resources[side] = {point:box.getCenter(new Vector3()).setY(box.max.y), radius:box.getSize(new Vector3()).x / 2};
+        }
     }
 
-    // A dark disc with the number of cards left, lying on top of the deck
-    private makeDeckCounter(side:Side, deck:Box3){
-        const canvas = document.createElement("canvas");
-        canvas.width = canvas.height = 128;
-        const texture = this.texture(canvas);
-        texture.flipY = true;
-        const size = DECK_COUNTER_SIZE;
-        const label = new Mesh(new PlaneGeometry(size, size), unlit({map:texture, transparent:true, depthWrite:false}));
-        label.rotation.x = -Math.PI / 2;
-        label.position.copy(deck.getCenter(new Vector3())).setY(deck.max.y + 0.0006);
-        this.scene.add(label);
-        this.deckCounters[side] = {canvas, texture, value:null};
+    // Where each counter goes on screen; call again when the view changes size
+    counterSpots():CounterSpots{
+        const spots = {resources:{}, deck:{}} as CounterSpots;
+        (["resources", "deck"] as const).forEach((kind)=>{
+            (["player", "opponent"] as Side[]).forEach((side)=>{
+                const anchor = this.counterAnchors[kind][side];
+                if(!anchor){
+                    return;
+                }
+                const center = this.toScreen(anchor.point);
+                const edge = this.toScreen(anchor.point.clone().add(new Vector3(anchor.radius, 0, 0)));
+                spots[kind][side] = {x:center.x, y:center.y, size:Math.abs(edge.x - center.x) * 2};
+            });
+        });
+        return spots;
+    }
+
+    get counters():Counters{
+        return this.counterValues;
+    }
+
+    private setCounter(kind:"resources" | "deck", side:Side, value:number){
+        if(this.counterValues[kind][side] === value){
+            return;
+        }
+        this.counterValues = {...this.counterValues, [kind]:{...this.counterValues[kind], [side]:value}};
+        if(this.onCounters){
+            this.onCounters(this.counterValues);
+        }
     }
 
     setDeckCount(side:Side, value:number){
-        const counter = this.deckCounters[side];
-        if(!counter || counter.value === value){
-            return;
-        }
-        counter.value = Math.max(0, value);
-        const g = counter.canvas.getContext("2d");
-        g.clearRect(0, 0, 128, 128);
-        g.fillStyle = "rgba(8, 10, 14, 0.82)";
-        g.beginPath();
-        g.arc(64, 64, 58, 0, Math.PI * 2);
-        g.fill();
-        g.lineWidth = 5;
-        g.strokeStyle = "rgba(255, 210, 122, 0.85)";
-        g.stroke();
-        g.font = "bold " + (counter.value >= 100 ? 48 : 62) + "px GWENT, Georgia, serif";
-        g.textAlign = "center";
-        g.textBaseline = "middle";
-        g.fillStyle = "#fff";
-        g.fillText(String(counter.value), 64, 68);
-        counter.texture.needsUpdate = true;
+        this.setCounter("deck", side, Math.max(0, value));
     }
 
     // A card leaves the deck (its counter counts one down before the server's next state says so)
     takeFromDeck(side:Side){
-        const counter = this.deckCounters[side];
-        if(counter && counter.value !== null){
-            this.setDeckCount(side, counter.value - 1);
+        const value = this.counterValues.deck[side];
+        if(value !== null){
+            this.setDeckCount(side, value - 1);
         }
     }
 
     setResources(side:Side, value:number){
-        const counter = this.counters[side];
-        if(!counter || counter.value === value){
-            return;
-        }
-        counter.value = value;
-        const g = counter.canvas.getContext("2d");
-        g.clearRect(0, 0, 128, 128);
-        g.font = "bold " + (value >= 100 ? 54 : 72) + "px GWENT, Georgia, serif";
-        g.textAlign = "center";
-        g.textBaseline = "middle";
-        g.lineWidth = 8;
-        g.strokeStyle = "#000";
-        g.fillStyle = "#fff";
-        g.strokeText(String(value), 64, 68);
-        g.fillText(String(value), 64, 68);
-        counter.texture.needsUpdate = true;
+        this.setCounter("resources", side, value);
     }
 
     //end turn button-------------------------------------------------------------------------
