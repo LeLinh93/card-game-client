@@ -3,9 +3,14 @@
 The web client for playing the card game, replacing the old Unity client. It talks to
 [card-server](../card-server) and draws cards with the same template as card-website.
 
-So far it has the login, a main menu and the deck editor. Playing a match comes next.
+So far it has the login, a main menu and the deck editor. Choosing a mode and pressing Play opens
+the match, which loads the 3D play area with threngine (`src/game/Engine3D.ts`). Playing the match
+comes next.
 
 ## Run
+
+threngine comes from Viscircle's GitLab npm registry. Before installing, copy `.npmrc` from
+dora-frontend into this folder. It holds the registry login, so git ignores it.
 
 ```bash
 npm install

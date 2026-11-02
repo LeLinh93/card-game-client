@@ -3,7 +3,7 @@ import "./Home.css";
 import {Session} from "../App";
 import title from "../img/ui/title.png";
 
-type Mode = "free" | "bot" | "friend";
+export type Mode = "free" | "bot" | "friend";
 
 const MODES:{mode:Mode, label:string, about:string}[] = [
     {mode:"free", label:"Free match", about:"Play against another player"},
@@ -11,11 +11,10 @@ const MODES:{mode:Mode, label:string, about:string}[] = [
     {mode:"friend", label:"Friend match", about:"Play against a friend"},
 ];
 
-// The Home page: the first Play opens the play panel to choose a mode. Starting a match comes later.
-export function Home(props:{session:Session, onDecks:()=>void}){
+// The Home page: the first Play opens the play panel to choose a mode, the second starts the match
+export function Home(props:{session:Session, onDecks:()=>void, onPlay:(mode:Mode)=>void}){
     const [open, setOpen] = useState(false);
     const [mode, setMode] = useState<Mode>(null);
-    const [note, setNote] = useState("");
     const active = props.session.decks.find(d => d._id === props.session.activeDeck);
 
     useEffect(()=>{
@@ -29,15 +28,13 @@ export function Home(props:{session:Session, onDecks:()=>void}){
 
     function close(){
         setOpen(false);
-        setNote("");
     }
 
     function play(){
         if(!open){
             return setOpen(true);
         }
-        // Entering a match isn't there yet
-        setNote("Matches aren't ready yet.");
+        props.onPlay(mode);
     }
 
     return(
@@ -53,7 +50,7 @@ export function Home(props:{session:Session, onDecks:()=>void}){
                     {MODES.map(m => (
                         <button key={m.mode} role="radio" aria-checked={mode === m.mode}
                                 className={mode === m.mode ? "play-mode selected" : "play-mode"}
-                                onClick={()=>{setMode(m.mode); setNote("")}}>
+                                onClick={()=>{setMode(m.mode)}}>
                             <span className="play-mode-mark" aria-hidden="true"/>
                             <span className="play-mode-text">
                                 <span className="play-mode-name">{m.label}</span>
@@ -74,7 +71,6 @@ export function Home(props:{session:Session, onDecks:()=>void}){
                         )}
                     </div>
                 ) : null}
-                {note ? <p className="play-note" role="status">{note}</p> : null}
                 <button className="play-button" disabled={open && (!mode || !active)}
                         title={open && !mode ? "Choose a mode" : open && !active ? "Choose an active deck" : undefined}
                         onClick={play}>

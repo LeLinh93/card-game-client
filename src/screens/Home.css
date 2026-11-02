@@ -170,12 +170,6 @@
     text-decoration: underline;
 }
 
-.play-note {
-    margin: 0;
-    color: var(--muted);
-    text-align: center;
-}
-
 .play-button {
     height: 64px;
     font-family: var(--font-display);

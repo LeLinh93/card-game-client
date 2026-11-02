@@ -1,0 +1,28 @@
+.match-page {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* threngine puts its canvas in here and sizes it to this div */
+.match-scene {
+    position: absolute;
+    inset: 0;
+}
+
+.match-status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 24px;
+    pointer-events: none;
+}
+
+.match-leave {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+}

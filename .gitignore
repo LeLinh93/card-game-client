@@ -8,6 +8,9 @@ dist
 .env.*
 !.env.example
 
+# npm registry login for the @viscircle-org packages (copy it from dora-frontend)
+.npmrc
+
 # Logs
 *.log
 npm-debug.log*

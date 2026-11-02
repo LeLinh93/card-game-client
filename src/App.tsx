@@ -1,7 +1,9 @@
-import {useRef, useState} from "react";
+import {lazy, Suspense, useRef, useState} from "react";
 import {api, Card, Deck, Metadata, UnauthorizedError} from "./api";
 import {Login} from "./screens/Login";
-import {Home} from "./screens/Home";
+import {Home, Mode} from "./screens/Home";
+// The 3D engine is big, so it loads when the first match starts
+const Match = lazy(() => import("./screens/Match").then(m => ({default:m.Match})));
 import {DeckEditor} from "./screens/DeckEditor";
 import {Tab, TopNav} from "./components/TopNav";
 
@@ -20,6 +22,8 @@ export function App(){
     const [session, setSession] = useState<Session>(null);
     const [tab, setTab] = useState<Tab>("home");
     const [notice, setNotice] = useState("");
+    // The mode of the match being played; the match takes the whole window
+    const [match, setMatch] = useState<Mode>(null);
     // Set while a deck has unsaved changes, so the header asks before leaving it
     const unsaved = useRef(false);
 
@@ -57,6 +61,9 @@ export function App(){
     if(!session){
         return <Login onLogin={login} notice={notice}/>;
     }
+    if(match){
+        return <Suspense><Match mode={match} onLeave={()=>{setMatch(null)}}/></Suspense>;
+    }
     return(
         <div className="app-shell">
             <TopNav tab={tab} username={session.username}
@@ -67,7 +74,7 @@ export function App(){
                     <DeckEditor session={session} onChange={setSession} withToken={withToken}
                                 onUnsaved={(value)=>{unsaved.current = value}}/>
                 ) : (
-                    <Home session={session} onDecks={()=>{setTab("decks")}}/>
+                    <Home session={session} onDecks={()=>{setTab("decks")}} onPlay={setMatch}/>
                 )}
             </main>
         </div>
