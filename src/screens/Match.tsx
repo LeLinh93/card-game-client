@@ -175,6 +175,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
             b.setResources("opponent", them.resources);
             b.setDeckCount("player", me.deckAmount);
             b.setDeckCount("opponent", them.deckAmount);
+            b.setPortalOpen(turn.current && fieldEmpty(them));
             return Promise.all([b.syncField("player", me.frontline, me.backline), b.syncField("opponent", them.frontline, them.backline)]);
         };
 
@@ -243,6 +244,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
                 setMyTurn(msg.isTurn);
                 turn.current = msg.isTurn;
                 b.setEndTurnButton(msg.isTurn);
+                b.setPortalOpen(msg.isTurn && fieldEmpty(msg.opponent));
                 await setState(msg.player, msg.opponent);
             });
         });
@@ -547,6 +549,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
         }
         turn.current = false;
         board.current.setEndTurnButton(false);
+        board.current.setPortalOpen(false);
         connection.current.send("endTurn");
     }
 
@@ -605,7 +608,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
     }
 
     // Dragging a field card that can attack draws a line to the pointer; let go over a card it can
-    // strike (or anywhere over the opponent's field once it is empty) to attack
+    // strike (or over the opponent's portal once their field is empty) to attack
     function startAttack(e:PointerEvent){
         if(e.button !== 0 || !loaded.scene){
             return;
@@ -644,7 +647,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
             if(over && over.side === "opponent" && canTarget(attacker, over.card, opponent.current)){
                 target = {side:"opponent", cardID:over.card.id};
             }
-            else if(fieldEmpty(opponent.current) && b.overOpponentHalf(ev.clientX, ev.clientY)){
+            else if(fieldEmpty(opponent.current) && b.overPortal(ev.clientX, ev.clientY)){
                 target = "player";
             }
             else{
@@ -697,9 +700,9 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
         <div className="match-page" data-mode={props.mode}>
             <div className="match-scene" ref={mount} onPointerMove={inspect} onPointerDown={startAttack}
                  onPointerLeave={(e)=>{
-                     setInspected(null);
-                     // Moving onto the Activate button keeps it
+                     // Moving onto the Activate button keeps it, and the card shown on the left
                      if(!(e.relatedTarget instanceof Element && e.relatedTarget.closest(".match-activate"))){
+                         setInspected(null);
                          setActivatable(null);
                      }
                  }}/>
@@ -709,6 +712,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
                         onPointerLeave={(e)=>{
                             if(!(e.relatedTarget instanceof Element && e.relatedTarget.closest(".match-scene"))){
                                 setActivatable(null);
+                                setInspected(null);
                             }
                         }}
                         onClick={()=>{activate(activatable.card)}}>

@@ -19,6 +19,10 @@ const END_TURN_BUTTON = "BUTTON";
 // Objects of the play area: the player sits on the near side
 const DECKS = {player:"Deck1", opponent:"Deck"};
 const SPHERE = "Sphere_gizmo";
+// Each player's portal, in the corner of their side: an attacker dropped on the opponent's attacks
+// them directly, once their field is empty
+const PORTALS = {player:"Av1", opponent:"Av"};
+const PORTAL_REACH = 0.024;
 // The "24" next to each deck: 3D text, replaced by a counter of the side's resources
 const COUNTERS = {player:"Text001", opponent:"Text"};
 const COUNTER_FACES = {player:"polySurface21001", opponent:"polySurface21"};
@@ -106,6 +110,9 @@ export class Board3D{
     private decks:Record<Side, Vector3> = {player:null, opponent:null};
     private sphere:Vector3;
     private sphereOpen = false;
+    private portals:Record<Side, Vector3> = {player:null, opponent:null};
+    // The glow over the opponent's portal: off, open (the field is empty) or aimed at
+    private portalGlow:{mesh:Mesh, level:number} = null;
     private counters:Record<Side, {canvas:HTMLCanvasElement, texture:Texture, value:number}> = {player:null, opponent:null};
     // The number of cards left, on top of each deck
     private deckCounters:Record<Side, {canvas:HTMLCanvasElement, texture:Texture, value:number}> = {player:null, opponent:null};
@@ -166,6 +173,10 @@ export class Board3D{
             });
         });
         this.sphere = new Box3().setFromObject(this.scene.getObjectByName(SPHERE)).getCenter(new Vector3());
+        (Object.keys(PORTALS) as Side[]).forEach((side)=>{
+            const portal = this.scene.getObjectByName(PORTALS[side]);
+            this.portals[side] = portal ? new Box3().setFromObject(portal).getCenter(new Vector3()) : null;
+        });
     }
 
     // The card back's picture, for the hands drawn in HTML
@@ -781,6 +792,10 @@ export class Board3D{
                 (glow.mesh.material as MeshBasicMaterial).opacity = glow.level * (0.78 + 0.22 * Math.sin(now / 180));
             }
         });
+        if(this.portalGlow && this.portalGlow.level > 0){
+            any = true;
+            (this.portalGlow.mesh.material as MeshBasicMaterial).opacity = this.portalGlow.level * (0.7 + 0.3 * Math.sin(now / 220));
+        }
         this.glowFrame = any && !this.stopped ? requestAnimationFrame(this.shimmer) : null;
     }
 
@@ -853,19 +868,78 @@ export class Board3D{
         return found ? this.toScreen(this.slotPosition(side, found.row, found.index)) : null;
     }
 
-    // Whether this point of the screen is over the opponent's half of the field
-    overOpponentHalf(x:number, y:number):boolean{
-        const point = this.pointerPoint(x, y, 0);
-        return !!point && point.z < (ROWS.player.front + ROWS.opponent.front) / 2 && point.z > ROWS.opponent.back - SLOT;
+    // Whether this point of the screen is over the opponent's portal
+    overPortal(x:number, y:number):boolean{
+        const portal = this.portals.opponent;
+        const point = portal ? this.pointerPoint(x, y, portal.y) : null;
+        return !!point && Math.hypot(point.x - portal.x, point.z - portal.z) < PORTAL_REACH;
     }
 
-    // Marks what the dragged attacker is aimed at: an opponent's card, or the opponent's whole field
-    // when the opponent is attacked directly; null clears it
+    // The opponent's portal glows while it can be attacked (their field is empty, on the player's turn)
+    setPortalOpen(open:boolean){
+        this.portalLight(open ? GLOW_SOFT : 0);
+    }
+
+    private portalLight(level:number){
+        const portal = this.portals.opponent;
+        if(!portal){
+            return;
+        }
+        if(!this.portalGlow){
+            if(level <= 0){
+                return;
+            }
+            const size = PORTAL_REACH * 2.6;
+            const geometry = new PlaneGeometry(size, size);
+            geometry.rotateX(-Math.PI / 2);
+            const mesh = new Mesh(geometry, unlit({map:this.ringTexture(), color:GLOW_RED, transparent:true, blending:AdditiveBlending, depthTest:false, depthWrite:false}));
+            mesh.position.copy(portal).setY(portal.y + 0.006);
+            mesh.renderOrder = RENDER_ORDER - 1;
+            this.scene.add(mesh);
+            this.portalGlow = {mesh, level:0};
+        }
+        this.portalGlow.level = level;
+        this.portalGlow.mesh.visible = level > 0;
+        if(level > 0 && this.glowFrame === null){
+            this.glowFrame = requestAnimationFrame(this.shimmer);
+        }
+    }
+
+    // A soft glowing ring the size of the portal's rim
+    private ringTexture():Texture{
+        const size = 256;
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = size;
+        const g = canvas.getContext("2d");
+        const radius = size / 2 / 1.3;
+        g.strokeStyle = "#fff";
+        g.shadowColor = "#fff";
+        g.shadowBlur = 30;
+        g.lineWidth = 18;
+        g.globalAlpha = 0.7;
+        g.beginPath();
+        g.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+        g.stroke();
+        g.stroke();
+        g.shadowBlur = 12;
+        g.lineWidth = 6;
+        g.globalAlpha = 1;
+        g.beginPath();
+        g.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+        g.stroke();
+        return new CanvasTexture(canvas);
+    }
+
+    // Marks what the dragged attacker is aimed at: an opponent's card, or their portal when they are
+    // attacked directly; null clears it
     aimAt(target:{side:Side, cardID:string} | "player" | null){
+        if(this.portalGlow && this.portalGlow.level > 0){
+            this.portalLight(target === "player" ? 1 : GLOW_SOFT);
+        }
         (["front", "back"] as Row[]).forEach((row)=>{
             this.zones.opponent[row].forEach((mesh, i)=>{
                 const card = this.field.opponent[row][i];
-                const on = target === "player" || (!!target && !!card && target.cardID === card.cardID);
+                const on = !!target && target !== "player" && !!card && target.cardID === card.cardID;
                 this.light(mesh, on ? 1 : 0, GLOW_RED);
             });
         });
@@ -945,7 +1019,7 @@ export class Board3D{
         let point:Vector3;
         if(target === "player"){
             const other:Side = side === "player" ? "opponent" : "player";
-            point = new Vector3(FIELD_X, 0, ROWS[other].back + (other === "opponent" ? -1 : 1) * SLOT);
+            point = this.portals[other] ? this.portals[other].clone() : new Vector3(FIELD_X, 0, ROWS[other].back + (other === "opponent" ? -1 : 1) * SLOT);
         }
         else{
             const hit = this.fieldCard(target.side, target.cardID);
