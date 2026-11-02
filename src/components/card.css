@@ -1,0 +1,118 @@
+/* The card template, copied from card-website (src/Components/createCard/createCard.css).
+   Keep the two in step when the template changes. */
+
+@font-face {
+    font-family: GWENT;
+    src: url("../font/hinted-GWENT-ExtraBold.ttf") format("truetype");
+}
+
+.card-rep-holder{
+    display: flex;
+    justify-content: center;
+    font-family: GWENT;
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
+    position: relative;
+    width: 400px;
+    height: 710px;
+}
+
+.card-rep{
+    position: absolute;
+    width: 400px;
+    z-index: 4;
+}
+
+.card-image{
+    position: absolute;
+    width: 370px;
+    top: 60px;
+    z-index: 3;
+}
+
+.card-name{
+    position: absolute;
+    width: 370px;
+    top: 403px;
+    font-size: 24px;
+    z-index: 5;
+    text-align: center;
+    color: white;
+}
+
+/* Fills the top banner from the flag to the right edge, always ending at the right */
+.card-header{
+    position: absolute;
+    left: 95px;
+    width: 279px;
+    top: 29px;
+    font-size: 22px;
+    line-height: 22px;
+    z-index: 5;
+    text-align: right;
+    white-space: nowrap;
+    color: white;
+}
+
+/* Centered on the flag */
+.card-resources{
+    position: absolute;
+    width: 76px;
+    top: 14px;
+    left: 12px;
+    font-size: 60px;
+    line-height: 60px;
+    z-index: 5;
+    text-align: center;
+    color: white;
+}
+
+/* Stats sit in the bottom-left box, each number right-aligned just before its icon */
+.card-attack,
+.card-defense,
+.card-health{
+    position: absolute;
+    top: 658px;
+    font-size: 28px;
+    line-height: 28px;
+    z-index: 5;
+    text-align: right;
+    color: white;
+}
+
+.card-attack{
+    left: 12px;
+    width: 41px;
+}
+
+.card-defense{
+    left: 79px;
+    width: 44px;
+}
+
+.card-health{
+    left: 147px;
+    width: 46px;
+}
+
+.card-description{
+    position: absolute;
+    width: 360px;
+    top: 455px;
+    left: 25px;
+    font-size: 20px;
+    z-index: 5;
+    text-align: left;
+    color: black;
+    white-space: pre-wrap;
+    -webkit-text-stroke-width: 0px;
+}
+
+/* The attribute line and each skill; a little gap between them, none inside a wrapped skill */
+.card-description-line{
+    display: block;
+}
+
+.card-description-line + .card-description-line{
+    margin-top: 8px;
+}

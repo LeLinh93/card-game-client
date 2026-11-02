@@ -1,0 +1,85 @@
+/* Colors and controls follow card-website (src/index.css) */
+:root {
+    color-scheme: dark;
+    --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
+    --text: #ece6d8;
+    --muted: #9b9486;
+    --accent: #f3a33c;
+    --accent-glow: rgba(255, 150, 40, 0.5);
+    --danger: #ff8a7a;
+    --panel: rgba(16, 18, 23, 0.82);
+    --panel-border: rgba(255, 255, 255, 0.09);
+    --control: rgba(0, 0, 0, 0.5);
+    --control-border: rgba(255, 255, 255, 0.16);
+}
+
+html, body, #root {
+    margin: 0;
+    height: 100%;
+}
+
+body {
+    font-family: var(--font-body);
+    color: var(--text);
+    background-color: #07090c;
+    background-image: radial-gradient(ellipse at 30% 0%, #2a3442 0%, #0b0f15 55%, #050608 100%);
+    background-attachment: fixed;
+}
+
+input, select, button {
+    font: inherit;
+    color: var(--text);
+}
+
+input[type="text"], input[type="password"], input[type="number"], select {
+    background: var(--control);
+    border: 1px solid var(--control-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(243, 163, 60, 0.25);
+}
+
+select option {
+    background: #15171c;
+    color: var(--text);
+}
+
+button {
+    background: linear-gradient(180deg, #4c4e56, #2e3036);
+    border: 1px solid var(--control-border);
+    border-radius: 6px;
+    padding: 8px 18px;
+    cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+    border-color: var(--accent);
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+button.primary {
+    background: linear-gradient(180deg, #f3a33c, #c46a14);
+    border-color: #ffcf8a;
+    color: #1a1208;
+    font-weight: 600;
+}
+
+.error {
+    color: var(--danger);
+}
+
+/* The dark side panel of the Unity menus (menu.png) */
+.panel {
+    background: linear-gradient(160deg, #2b302f, #1d201f);
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
+}

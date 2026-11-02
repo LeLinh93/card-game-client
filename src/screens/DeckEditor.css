@@ -1,0 +1,378 @@
+/* deck list ------------------------------------------------------------------------------- */
+
+.decks-page {
+    height: 100%;
+    box-sizing: border-box;
+    padding: 24px 32px;
+    overflow-y: auto;
+}
+
+.decks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1100px;
+    margin: 0 auto 20px;
+}
+
+.decks-header h1 {
+    margin: 0;
+    font-size: 30px;
+}
+
+.decks-error {
+    max-width: 1100px;
+    margin: 0 auto 12px;
+}
+
+.deck-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.deck-tile {
+    display: flex;
+    flex-direction: column;
+    min-height: 150px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    overflow: hidden;
+}
+
+.deck-tile.is-active {
+    border-color: var(--accent);
+    box-shadow: 0 0 18px var(--accent-glow);
+}
+
+.deck-open {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 18px;
+    text-align: left;
+}
+
+.deck-name {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.deck-size {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+/* Not playable yet (too few cards or a backline that isn't full) */
+.deck-size.not-ready {
+    color: var(--danger);
+}
+
+.deck-activate,
+.deck-active {
+    margin: 0 14px 14px;
+}
+
+.deck-active {
+    padding: 8px 18px;
+    border-radius: 6px;
+    text-align: center;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.deck-add {
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+    border-style: dashed;
+}
+
+.deck-add img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+}
+
+/* one deck -------------------------------------------------------------------------------- */
+
+.editor-page {
+    display: flex;
+    height: 100%;
+}
+
+.editor-cards {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+}
+
+.filter-bar input[type="text"] {
+    width: 200px;
+}
+
+.filter-select {
+    text-transform: capitalize;
+}
+
+.filter-select.on,
+.cost-range:has(input:not(:placeholder-shown)) {
+    border-color: var(--accent);
+}
+
+.cost-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    border-radius: 6px;
+    background: var(--control);
+    border: 1px solid var(--control-border);
+    color: var(--muted);
+}
+
+.cost-range input {
+    width: 44px;
+    border: none;
+    background: transparent;
+    text-align: center;
+}
+
+.filter-hint {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.card-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 16px 8px;
+    align-content: start;
+    justify-items: center;
+    padding: 4px 16px 24px;
+}
+
+.card-tile {
+    position: relative;
+    padding: 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.12s;
+    user-select: none;
+}
+
+.card-tile:hover {
+    transform: translateY(-4px);
+}
+
+.card-tile.is-token {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.card-count {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    z-index: 10;
+    padding: 2px 10px;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #1a1208;
+    font-weight: 700;
+}
+
+.card-empty {
+    grid-column: 1 / -1;
+    color: var(--muted);
+}
+
+.editor-panel {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.deck-name-input {
+    font-size: 20px;
+    height: 44px;
+    box-sizing: border-box;
+}
+
+.deck-section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 4px;
+    font-weight: 600;
+}
+
+.backline-toggle {
+    background: transparent;
+    border: none;
+    border-top: 1px solid var(--panel-border);
+    border-radius: 0;
+    padding: 10px 4px 6px;
+    text-align: left;
+}
+
+.count {
+    color: var(--muted);
+    font-weight: normal;
+}
+
+.count.low {
+    color: var(--danger);
+}
+
+.deck-rows {
+    flex: 1;
+    min-height: 80px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.backline-rows {
+    flex: 0 0 auto;
+}
+
+.rows-empty {
+    margin: 4px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+/* The deck bar pictures are 953x174: the cost flag spans 4-20% of the width, the circle 83-100% */
+.deck-row {
+    position: relative;
+    flex-shrink: 0;
+    width: 100%;
+    aspect-ratio: 953 / 174;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent center / 100% 100% no-repeat;
+    font-family: GWENT, var(--font-body);
+    color: white;
+    -webkit-text-stroke: 0.6px black;
+}
+
+.deck-row:hover {
+    filter: brightness(1.2);
+}
+
+.row-cost,
+.row-name,
+.row-amount {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.row-cost {
+    left: 4%;
+    width: 16.5%;
+    font-size: 22px;
+    text-align: center;
+}
+
+.row-name {
+    left: 23%;
+    right: 19%;
+    font-size: 15px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.row-amount {
+    left: 84%;
+    width: 14.5%;
+    font-size: 20px;
+    text-align: center;
+}
+
+.editor-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--panel-border);
+}
+
+.editor-footer p {
+    margin: 0;
+    font-size: 13px;
+}
+
+.deck-problems {
+    color: var(--muted);
+}
+
+.saved {
+    color: #8fd18f;
+}
+
+.editor-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.editor-buttons button {
+    flex: 1;
+    height: 42px;
+}
+
+/* The card under the mouse in the deck list, shown left of the panel */
+.row-preview {
+    position: fixed;
+    top: 50%;
+    right: 356px;
+    transform: translateY(-50%);
+    z-index: 20;
+    pointer-events: none;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.7));
+}
+
+@media (max-width: 800px) {
+    .editor-page {
+        flex-direction: column;
+    }
+
+    .editor-panel {
+        width: auto;
+        max-height: 50%;
+    }
+
+    .row-preview {
+        display: none;
+    }
+}
