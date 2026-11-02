@@ -3,24 +3,51 @@ import {createRoot} from "react-dom/client";
 import {flushSync} from "react-dom";
 import {toCanvas} from "html-to-image";
 import {CardFace, CardView} from "../components/CardView";
+import {imageUrl} from "../api";
 
 // The card template's size in px (components/card.css)
 export const CARD_WIDTH = 400;
 export const CARD_HEIGHT = 710;
+// The side of the square pictures of the cards on the field
+const SQUARE_SIZE = 256;
 
 const cache = new Map<string, Promise<HTMLCanvasElement>>();
 
-// The card drawn with the same template as the hand (CardView), as a canvas for a 3D texture.
-// Each look is drawn once; the stats are part of the key, so a changed card is drawn again.
-export function cardCanvas(card:CardFace):Promise<HTMLCanvasElement>{
-    const key = JSON.stringify([card.name, card.type, card.imagePath, card.resources, card.attack, card.defense, card.health, card.description, card.header]);
+// Each picture is drawn once; a failed one (e.g. the picture didn't load) is tried again next time
+function cached(key:string, draw:()=>Promise<HTMLCanvasElement>):Promise<HTMLCanvasElement>{
     if(!cache.has(key)){
-        const drawing = draw(card);
-        // A failed drawing (e.g. the picture didn't load) is tried again next time
+        const drawing = draw();
         drawing.catch(()=>{cache.delete(key)});
         cache.set(key, drawing);
     }
     return cache.get(key);
+}
+
+// The card drawn with the same template as the hand (CardView), as a canvas for a 3D texture.
+// The stats are part of the key, so a changed card is drawn again.
+export function cardCanvas(card:CardFace):Promise<HTMLCanvasElement>{
+    const key = JSON.stringify([card.name, card.type, card.imagePath, card.resources, card.attack, card.defense, card.health, card.description, card.header]);
+    return cached(key, ()=>draw(card));
+}
+
+// A card on the field shows only its picture, cut to a square (the SquareCard model)
+export function squareCanvas(imagePath:string):Promise<HTMLCanvasElement>{
+    return cached("square:" + imagePath, async ()=>{
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = imageUrl(imagePath);
+        await img.decode();
+        return squareFrom(img);
+    });
+}
+
+// The middle square of a picture
+export function squareFrom(img:CanvasImageSource & {width:number, height:number}):HTMLCanvasElement{
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = SQUARE_SIZE;
+    const side = Math.min(img.width, img.height);
+    canvas.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SQUARE_SIZE, SQUARE_SIZE);
+    return canvas;
 }
 
 async function draw(card:CardFace):Promise<HTMLCanvasElement>{

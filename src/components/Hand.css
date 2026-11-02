@@ -11,7 +11,7 @@
 
 /* Each card shows down to just below its name (the name is 57-61% down the template) until hovered */
 .hand-player {
-    bottom: -105px;
+    bottom: -89px;
 }
 
 .hand-opponent {
@@ -20,6 +20,8 @@
 
 .hand-card {
     position: relative;
+    /* The template's layers (picture, frame, text) stack inside each card, not across cards */
+    isolation: isolate;
     flex: none;
     pointer-events: auto;
     transition: margin 0.25s ease, transform 0.15s ease;
@@ -27,9 +29,11 @@
 
 /* Cards overlap more as the hand grows */
 .hand-player .hand-card {
-    width: 160px;
-    height: 284px;
-    margin: 0 -18px;
+    cursor: grab;
+    touch-action: none;
+    width: 136px;
+    height: 241px;
+    margin: 0 -15px;
     transform-origin: bottom center;
 }
 
@@ -46,7 +50,7 @@
 /* Hovered: bigger, and lifted until the whole card is on screen */
 .hand-player .hand-card:hover {
     z-index: 10;
-    transform: translateY(-125px) scale(1.25);
+    transform: translateY(-109px) scale(1.25);
 }
 
 /* Keeps the lifted card hovered while the pointer stays where the card was */

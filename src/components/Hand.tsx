@@ -1,4 +1,5 @@
 import "./Hand.css";
+import type {PointerEvent} from "react";
 import {CardView} from "./CardView";
 import {GameCard, isKnown} from "../game/protocol";
 import type {Side} from "../game/Board3D";
@@ -11,13 +12,15 @@ export interface HandCard{
 
 // A hand drawn over the 3D play area: the player's cards face up along the bottom, the opponent's
 // backs along the top. Each card is marked with its id so a drawn card can fly to its place.
-export function Hand(props:{side:Side, cards:HandCard[], backImage:string}){
+// heldID: the card being dragged or played, which shows on the board instead
+export function Hand(props:{side:Side, cards:HandCard[], backImage:string, heldID?:string, onCardPointerDown?:(card:GameCard, e:PointerEvent)=>void}){
     return(
         <div className={"hand hand-" + props.side} data-hand={props.side}>
             {props.cards.map(({card, arriving})=>(
-                <div key={card.id} className={arriving ? "hand-card arriving" : "hand-card"} data-card-id={card.id}>
+                <div key={card.id} className={arriving || card.id === props.heldID ? "hand-card arriving" : "hand-card"} data-card-id={card.id}
+                     onPointerDown={props.onCardPointerDown && !arriving ? (e)=>{props.onCardPointerDown(card, e)} : undefined}>
                     {props.side === "player" && isKnown(card)
-                        ? <CardView card={card} scale={0.4}/>
+                        ? <CardView card={card} scale={0.34}/>
                         : <img className="hand-back" src={props.backImage} alt="" draggable={false}/>}
                 </div>
             ))}
