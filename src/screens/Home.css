@@ -1,0 +1,218 @@
+.home-page {
+    --panel-width: 340px;
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+}
+
+.home-title {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center top;
+    pointer-events: none;
+    transition: width 0.35s ease;
+}
+
+.panel-open .home-title {
+    width: calc(100% - var(--panel-width));
+}
+
+/* play panel: slides out from the right on the first Play ---------------------------------- */
+
+.play-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--panel-width);
+    box-sizing: border-box;
+    padding: 18px 0 0;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.35s ease, visibility 0.35s;
+    visibility: hidden;
+}
+
+.panel-open .play-panel {
+    transform: none;
+    visibility: visible;
+}
+
+.play-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px 12px 24px;
+    border-bottom: 2px solid var(--accent-strong);
+    box-shadow: 0 6px 14px -10px var(--accent-glow);
+}
+
+.play-panel-head h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: normal;
+}
+
+.play-close {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 16px;
+}
+
+.play-modes {
+    display: flex;
+    flex-direction: column;
+    margin-top: 14px;
+}
+
+.play-mode {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 24px;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0;
+}
+
+.play-mode:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.play-mode.selected {
+    background: linear-gradient(90deg, rgba(240, 150, 50, 0.28), rgba(240, 150, 50, 0));
+}
+
+/* The diamond in front of each mode, lit for the chosen one */
+.play-mode-mark {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    transform: rotate(45deg);
+    border: 2px solid var(--muted);
+}
+
+.play-mode.selected .play-mode-mark {
+    border-color: #ffd9a0;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.play-mode-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.play-mode-name {
+    font-family: var(--font-display);
+    font-size: 21px;
+}
+
+.play-mode-about {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+/* bottom right: active deck, then the Play button ------------------------------------------ */
+
+.play-dock {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    width: var(--panel-width);
+    box-sizing: border-box;
+    padding: 0 28px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.play-deck {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+}
+
+.play-deck-label {
+    color: var(--muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.play-deck-name {
+    font-family: var(--font-display);
+    font-size: 20px;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.play-deck-missing {
+    background: none;
+    border: none;
+    color: var(--danger);
+    text-decoration: underline;
+}
+
+.play-note {
+    margin: 0;
+    color: var(--muted);
+    text-align: center;
+}
+
+.play-button {
+    height: 64px;
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff4e2;
+    text-shadow: 0 2px 3px rgba(80, 20, 0, 0.8);
+    background: linear-gradient(180deg, #ffa13a 0%, #f26a12 55%, #c84a06 100%);
+    border: 2px solid #ffc27a;
+    border-radius: 34px;
+    box-shadow: 0 0 22px rgba(255, 110, 20, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+    transition: box-shadow 0.15s, filter 0.15s;
+}
+
+.play-button:hover:not(:disabled) {
+    border-color: #ffe0b0;
+    filter: brightness(1.08);
+    box-shadow: 0 0 30px rgba(255, 130, 30, 0.8), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+}
+
+.play-button:disabled {
+    opacity: 1;
+    filter: saturate(0.25) brightness(0.7);
+    box-shadow: none;
+}
+
+@media (max-width: 700px) {
+    .home-page {
+        --panel-width: 100%;
+    }
+
+    .panel-open .home-title {
+        width: 100%;
+        opacity: 0.15;
+    }
+
+    .play-dock {
+        padding: 0 16px 16px;
+    }
+}

@@ -2,15 +2,18 @@
 :root {
     color-scheme: dark;
     --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-display: Georgia, "Times New Roman", serif;
     --text: #ece6d8;
     --muted: #9b9486;
     --accent: #f3a33c;
+    --accent-strong: #ff7b1c;
     --accent-glow: rgba(255, 150, 40, 0.5);
     --danger: #ff8a7a;
     --panel: rgba(16, 18, 23, 0.82);
     --panel-border: rgba(255, 255, 255, 0.09);
     --control: rgba(0, 0, 0, 0.5);
     --control-border: rgba(255, 255, 255, 0.16);
+    --nav-height: 56px;
 }
 
 html, body, #root {
@@ -82,4 +85,18 @@ button.primary {
     background: linear-gradient(160deg, #2b302f, #1d201f);
     border-left: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Every page after login: the header menu, then the page filling the rest */
+.app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.app-main {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }

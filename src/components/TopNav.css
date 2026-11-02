@@ -1,0 +1,106 @@
+/* The header menu, after card-website (src/Components/menu/Menu.css) */
+.topnav {
+    position: relative;
+    z-index: 20;
+    flex: none;
+    display: flex;
+    align-items: stretch;
+    box-sizing: border-box;
+    height: var(--nav-height);
+    padding: 0 24px;
+    background: linear-gradient(180deg, rgba(34, 36, 42, 0.96), rgba(18, 19, 23, 0.96));
+    border-bottom: 1px solid rgba(0, 0, 0, 0.6);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.topnav-brand {
+    display: flex;
+    align-items: center;
+    margin-right: 28px;
+    font-family: var(--font-display);
+    font-size: 22px;
+    letter-spacing: 0.5px;
+    user-select: none;
+}
+
+.topnav .nav-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0;
+    transition: color 0.15s, background 0.15s;
+}
+
+.topnav .nav-button:last-of-type {
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.topnav .nav-button:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.topnav .nav-button.active {
+    color: #ffd9a0;
+    background: linear-gradient(180deg, rgba(240, 150, 50, 0.32), rgba(150, 65, 10, 0.55));
+}
+
+.topnav .nav-button.active::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 3px;
+    background: var(--accent-strong);
+    box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.topnav-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+}
+
+.topnav-user {
+    color: var(--muted);
+}
+
+.topnav .logout-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    color: var(--muted);
+    background: none;
+    border: 1px solid transparent;
+}
+
+.topnav .logout-button:hover {
+    color: var(--text);
+}
+
+@media (max-width: 600px) {
+    .topnav {
+        padding: 0 8px;
+    }
+
+    .topnav-brand, .topnav-user {
+        display: none;
+    }
+
+    .topnav .nav-button {
+        padding: 0 16px;
+        font-size: 17px;
+    }
+}

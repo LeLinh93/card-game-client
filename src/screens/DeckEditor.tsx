@@ -1,4 +1,4 @@
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import "./DeckEditor.css";
 import {api, Card, Deck} from "../api";
 import {Session} from "../App";
@@ -18,7 +18,8 @@ interface Props{
     session:Session;
     onChange:(session:Session)=>void;
     withToken:<T>(call:(token:string)=>Promise<T>)=>Promise<T>;
-    onBack:()=>void;
+    // Told whether the deck being edited has unsaved changes, so the header can ask before leaving
+    onUnsaved:(unsaved:boolean)=>void;
 }
 
 // The Unity deck editor: first the list of the player's decks, then one deck being edited
@@ -68,7 +69,6 @@ function DeckList(props:Props & {onOpen:(deck:Deck)=>void}){
         <div className="decks-page">
             <header className="decks-header">
                 <h1>Decks</h1>
-                <button onClick={props.onBack}>Menu</button>
             </header>
             {error ? <p className="error decks-error" role="alert">{error}</p> : null}
             <div className="deck-grid">
@@ -137,6 +137,11 @@ function EditDeck(props:Props & {deck:Deck, onClose:()=>void}){
     const shown = session.cards.filter(c => matches(c, filters));
     const saved = session.decks.find(d => d._id === draft._id) || props.deck;
     const changed = JSON.stringify(saved) !== JSON.stringify(draft);
+    const {onUnsaved} = props;
+    useEffect(()=>{
+        onUnsaved(changed);
+        return ()=>{onUnsaved(false)};
+    }, [changed, onUnsaved]);
 
     const say = (text:string, error = false)=>{setMessage({text, error})};
     const setFilter = (key:keyof Filters, value:string)=>{setFilters({...filters, [key]:value})};
