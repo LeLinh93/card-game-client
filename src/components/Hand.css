@@ -47,10 +47,10 @@
     visibility: hidden;
 }
 
-/* Hovered: bigger, and lifted until the whole card is on screen */
+/* Hovered: big enough to read, and lifted until the whole card is on screen */
 .hand-player .hand-card:hover {
     z-index: 10;
-    transform: translateY(-109px) scale(1.25);
+    transform: translateY(-109px) scale(1.9);
 }
 
 /* Keeps the lifted card hovered while the pointer stays where the card was */
@@ -85,7 +85,7 @@
     }
 
     .hand-player .hand-card:hover {
-        transform: translateY(-57px) scale(1.25);
+        transform: translateY(-57px) scale(1.9);
     }
 
     .hand-player .hand-card .card-scale {

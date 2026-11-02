@@ -27,9 +27,9 @@ const SLOT_GAP = 0.003;
 // ends of the back rows stay clear of the decks
 const FIELD_X = -0.004;
 const ROWS = {player:{front:0.003, back:0.034}, opponent:{front:-0.036, back:-0.067}};
-// How far a dragged card floats above the board, and how much bigger it is
+// How far a dragged card floats above the board; it stays the size of a zone
 const DRAG_HEIGHT = 0.012;
-const DRAG_SCALE = 1.25;
+const DRAG_SCALE = 1;
 // Within this distance of the sphere's middle (on the board), a dragged card is over the sphere
 const SPHERE_REACH = 0.02;
 
@@ -43,8 +43,8 @@ const RENDER_ORDER = 1000;
 // (measured over the board: 0.045 brings it from about 40 to 79 of 255)
 const ZONE_OPACITY = 0.045;
 const ZONE_GLOW_OPACITY = 0.75;
-// A glowing zone grows, so it shows around the bigger dragged card above it
-const ZONE_GLOW_SCALE = 1.6;
+// A glowing zone grows, so it shows around the dragged card above it
+const ZONE_GLOW_SCALE = 1.3;
 
 export type Side = "player" | "opponent";
 export type Row = "front" | "back";
@@ -290,6 +290,33 @@ export class Board3D{
 
     private slotPosition(side:Side, row:Row, index:number):Vector3{
         return new Vector3(FIELD_X + (index - 2) * (SLOT + SLOT_GAP), 0, ROWS[side][row]);
+    }
+
+    // The field card under this point of the screen, if any
+    fieldCardAt(x:number, y:number):{side:Side, cardID:string}{
+        const cards:{side:Side, card:FieldCard}[] = [];
+        (["player", "opponent"] as Side[]).forEach((side)=>{
+            (["front", "back"] as Row[]).forEach((row)=>{
+                this.field[side][row].forEach((card)=>{
+                    if(card){
+                        cards.push({side, card});
+                    }
+                });
+            });
+        });
+        if(cards.length <= 0){
+            return null;
+        }
+        const view = this.engine.mount.getBoundingClientRect();
+        const ray = new Raycaster();
+        this.camera.updateMatrixWorld();
+        ray.setFromCamera(new Vector2(((x - view.left) / view.width) * 2 - 1, -(((y - view.top) / view.height) * 2 - 1)), this.camera);
+        const hit = ray.intersectObjects(cards.map(c => c.card.object), true)[0];
+        if(!hit){
+            return null;
+        }
+        const found = cards.find(c => c.card.object === hit.object || c.card.object.getObjectById(hit.object.id));
+        return found ? {side:found.side, cardID:found.card.cardID} : null;
     }
 
     //resources------------------------------------------------------------------------------

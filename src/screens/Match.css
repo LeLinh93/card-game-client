@@ -42,3 +42,20 @@
     border-radius: 18px;
     pointer-events: none;
 }
+
+/* A field card the pointer is over, at a readable size */
+.match-inspect {
+    position: absolute;
+    top: 50%;
+    left: 24px;
+    z-index: 6;
+    transform: translateY(-50%);
+    filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.7));
+    pointer-events: none;
+}
+
+@media (max-width: 700px) {
+    .match-inspect .card-scale {
+        zoom: 0.35 !important;
+    }
+}

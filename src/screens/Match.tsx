@@ -6,6 +6,7 @@ import {Connection} from "../game/connection";
 import {ActionQueue, wait} from "../game/actionQueue";
 import {DrawCardMessage, GameCard, isKnown, PlayerState, StartGameMessage, StateMessage} from "../game/protocol";
 import {Hand, handCardRect, HandCard} from "../components/Hand";
+import {CardView} from "../components/CardView";
 import {Mode} from "./Home";
 
 // Time between two cards leaving the deck when several are drawn in a row
@@ -51,10 +52,13 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
     const [myTurn, setMyTurn] = useState<boolean>(null);
     // The card being dragged, or played and waiting for the server; it shows on the board
     const [heldID, setHeldID] = useState<string>(null);
+    // The field card the pointer is over, shown large on the left so it can be read
+    const [inspected, setInspected] = useState<GameCard>(null);
 
     const board = useRef<Board3D>(null);
     const connection = useRef<Connection>(null);
     const player = useRef<PlayerState>(null);
+    const opponent = useRef<PlayerState>(null);
     const turn = useRef(false);
     const pending = useRef<{action:string, cardID:string, timer:number}>(null);
 
@@ -75,6 +79,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
         // The board and the hands take the server's state
         const setState = (me:PlayerState, them:PlayerState)=>{
             player.current = me;
+            opponent.current = them;
             opponentHand = them.hand;
             setHands(h => ({player:handFrom(me.hand, h.player), opponent:handFrom(them.hand, h.opponent)}));
             b.setResources("player", me.resources);
@@ -114,6 +119,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
                 setMyTurn(msg.isTurn);
                 turn.current = msg.isTurn;
                 player.current = msg.player;
+                opponent.current = msg.opponent;
                 setHands({player:[], opponent:[]});
                 b.setResources("player", msg.player.resources);
                 b.setResources("opponent", msg.opponent.resources);
@@ -262,11 +268,24 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
         connection.current.send(action, target.kind === "zone" ? {cardID:card.id, index:target.index} : {cardID:card.id});
     }
 
+    // Over a field card the player may read: face up, or their own face-down card
+    function inspect(e:PointerEvent){
+        if(!loaded.scene || heldID){
+            return setInspected(null);
+        }
+        const hit = board.current.fieldCardAt(e.clientX, e.clientY);
+        const state = hit ? (hit.side === "player" ? player.current : opponent.current) : null;
+        const card = state ? state.frontline.concat(state.backline).find(c => c && c.id === hit.cardID) : null;
+        const readable = card && isKnown(card) && (!card.isHidden || hit.side === "player") ? card : null;
+        setInspected(readable);
+    }
+
     const waiting = !loaded.scene ? "Loading the play area…" : !loaded.match ? (props.mode === "free" ? "Looking for an opponent…" : "Starting the match…") : "";
 
     return(
         <div className="match-page" data-mode={props.mode}>
-            <div className="match-scene" ref={mount}/>
+            <div className="match-scene" ref={mount} onPointerMove={inspect} onPointerLeave={()=>{setInspected(null)}}/>
+            {inspected ? <div className="match-inspect" aria-live="polite"><CardView card={inspected} scale={0.75}/></div> : null}
             <Hand side="opponent" cards={hands.opponent} backImage={backImage}/>
             <Hand side="player" cards={hands.player} backImage={backImage} heldID={heldID} onCardPointerDown={startDrag}/>
             {waiting || error ? (
