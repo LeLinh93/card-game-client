@@ -68,3 +68,11 @@ export interface SelectionMessage{
     where?:string;
     order:number;
 }
+
+// A skill dealt damage ("physical" or "magical") to these cards, each with the damage it took. The
+// new health comes with the updateMessage after it.
+export interface SkillDamageMessage{
+    kind:string;
+    targets:{id:string, damage:number}[];
+    order:number;
+}

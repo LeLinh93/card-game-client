@@ -1,5 +1,5 @@
 import {
-    AdditiveBlending, Box3, CanvasTexture, Euler, Material, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Plane, PlaneGeometry,
+    AdditiveBlending, Box3, BufferGeometry, CanvasTexture, DoubleSide, Euler, Float32BufferAttribute, Material, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Plane, PlaneGeometry,
     Quaternion, Raycaster, RepeatWrapping, sRGBEncoding, Texture, Vector2, Vector3
 } from "three";
 import {Engine3D} from "./Engine3D";
@@ -46,6 +46,17 @@ const BEAM_SPEED = 2.5;
 const BOARD = {minX:-0.115, maxX:0.105, minZ:-0.12, maxZ:0.088};
 // How high an attacking card floats before it strikes
 const ATTACK_HEIGHT = 0.02;
+// Skill damage: the lightning's strips (m wide), how long it shows (ms) and how hard it shakes the
+// view; the arrows' length (m), flight and the time between them (ms), and how much the card shakes
+// as each hits. Both are over in well under a second.
+const BOLT_GLOW = 0.008;
+const BOLT_CORE = 0.0018;
+const LIGHTNING_TIME = 350;
+const LIGHTNING_SHAKE = 0.006;
+const ARROW_LENGTH = 0.03;
+const ARROW_FLIGHT = 90;
+const ARROW_GAP = 70;
+const ARROW_SHAKE = 0.0016;
 
 const DRAW_TIME = 550;
 const PLACE_TIME = 380;
@@ -1047,12 +1058,221 @@ export class Board3D{
         await this.tween(220, (t)=>{object.position.lerpVectors(from, base, easeInOut(t))});
     }
 
+    // A skill's damage hits these cards: magical damage strikes each with lightning from the sky,
+    // physical damage with three glowing arrows
+    async skillDamage(kind:string, cardIDs:string[]){
+        const hits = cardIDs.map((id)=>{
+            const side = (["player", "opponent"] as Side[]).find(s => this.fieldCard(s, id));
+            return side ? {side, id} : null;
+        }).filter(h => h);
+        if(hits.length === 0){
+            return;
+        }
+        if(kind === "magical"){
+            this.shake(LIGHTNING_SHAKE, 300);
+        }
+        await Promise.all(hits.map(h => kind === "magical" ? this.lightning(h.side, h.id) : this.arrows(h.side, h.id)));
+    }
+
+    // A blue bolt strikes once from the top of the screen onto the card, with a flash where it hits, and fades
+    private async lightning(side:Side, cardID:string){
+        const found = this.fieldCard(side, cardID);
+        const zone = this.zones[side][found.row][found.index];
+        const target = this.slotPosition(side, found.row, found.index).setY(0.002);
+        // The camera looks down on the board from the player's side: far away and high up is the top of the screen
+        const start = target.clone().add(new Vector3((Math.random() - 0.5) * 0.04, 0.12, -0.16));
+        // The strips are seen from either side, depending on which way the bolt runs
+        const effect = {transparent:true, blending:AdditiveBlending, depthTest:false, depthWrite:false, side:DoubleSide};
+        const glow = unlit({map:this.boltTexture(), color:0x2f6dff, ...effect});
+        const core = unlit({map:this.boltTexture(), color:0xe4f4ff, ...effect});
+        const flash = new Mesh(new PlaneGeometry(SLOT * 2.4, SLOT * 2.4).rotateX(-Math.PI / 2), unlit({map:this.burstTexture(), color:0x6fb2ff, ...effect}));
+        flash.position.copy(target);
+        flash.renderOrder = RENDER_ORDER + 1;
+        this.scene.add(flash);
+        const bolt:Mesh[] = [];
+        this.boltPaths(start, target).forEach((path, i)=>{
+            const scale = i === 0 ? 1 : 0.55;
+            [[glow, BOLT_GLOW], [core, BOLT_CORE]].forEach(([material, width]:[Material, number])=>{
+                const mesh = new Mesh(this.ribbon(path, width * scale), material);
+                mesh.renderOrder = RENDER_ORDER + 2;
+                this.scene.add(mesh);
+                bolt.push(mesh);
+            });
+        });
+        await this.tween(LIGHTNING_TIME, (t)=>{
+            // Full strength for the first moment, then gone
+            const level = t < 0.2 ? 1 : Math.pow((1 - t) / 0.8, 2);
+            glow.opacity = core.opacity = level;
+            (flash.material as MeshBasicMaterial).opacity = Math.min(1, (1 - t) * 1.6);
+            flash.scale.setScalar(0.7 + 0.5 * t);
+            this.light(zone, level, 0x6fb2ff);
+        });
+        bolt.forEach((m)=>{this.scene.remove(m); m.geometry.dispose()});
+        this.scene.remove(flash);
+        flash.geometry.dispose();
+        [glow, core, flash.material as Material].forEach(m => m.dispose());
+        this.light(zone, 0, 0x6fb2ff);
+    }
+
+    // The bolt from start to end, and a short fork off its upper half
+    private boltPaths(start:Vector3, end:Vector3):Vector3[][]{
+        const path = (from:Vector3, to:Vector3, steps:number, jag:number)=>{
+            const points = [from.clone()];
+            for(let i = 1; i < steps; i++){
+                const p = from.clone().lerp(to, i / steps);
+                p.x += (Math.random() - 0.5) * jag;
+                p.z += (Math.random() - 0.5) * jag;
+                points.push(p);
+            }
+            points.push(to.clone());
+            return points;
+        };
+        const main = path(start, end, 14, 0.012);
+        const at = main[3 + Math.floor(Math.random() * 4)];
+        const fork = at.clone().lerp(end, 0.35).add(new Vector3((Math.random() < 0.5 ? -1 : 1) * 0.018, 0, 0.004));
+        return [main, path(at, fork, 5, 0.008)];
+    }
+
+    // A strip along the points, "width" wide and turned to the camera; the texture runs across it
+    private ribbon(points:Vector3[], width:number):BufferGeometry{
+        const eye = this.camera.getWorldPosition(new Vector3());
+        const positions:number[] = [], uvs:number[] = [], index:number[] = [];
+        points.forEach((p, i)=>{
+            const along = points[Math.min(i + 1, points.length - 1)].clone().sub(points[Math.max(i - 1, 0)]);
+            const across = along.cross(eye.clone().sub(p)).normalize().multiplyScalar(width / 2);
+            const a = p.clone().add(across), b = p.clone().sub(across);
+            positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+            uvs.push(i / (points.length - 1), 0, i / (points.length - 1), 1);
+            if(i > 0){
+                const k = i * 2;
+                index.push(k - 2, k - 1, k, k - 1, k + 1, k);
+            }
+        });
+        const geometry = new BufferGeometry();
+        geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+        geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(index);
+        return geometry;
+    }
+
+    // Three glowing arrows fly in from the other side one after another and stick in the card, which
+    // shakes as each hits; then they fade away
+    private async arrows(side:Side, cardID:string){
+        const found = this.fieldCard(side, cardID);
+        const object = found.card.object;
+        const origin = object.position.clone();
+        const target = this.slotPosition(side, found.row, found.index);
+        // From the opponent's side for the player's cards, and the other way round
+        const facing = side === "player" ? -Math.PI / 2 : Math.PI / 2;
+        const effect = {transparent:true, blending:AdditiveBlending, depthTest:false, depthWrite:false};
+        const material = unlit({map:this.arrowTexture(), color:0xffc85a, ...effect});
+        const arrows:Mesh[] = [];
+        const shoot = async (k:number)=>{
+            await wait(k * ARROW_GAP);
+            const angle = facing + (k - 1) * 0.45 + (Math.random() - 0.5) * 0.2;
+            // Where it flies: towards the card's middle, from the direction of the angle
+            const toward = new Vector3(-Math.cos(angle), 0, -Math.sin(angle));
+            const tip = target.clone().add(new Vector3((k - 1) * 0.006, 0.003, (Math.random() - 0.5) * 0.008));
+            const end = tip.clone().addScaledVector(toward, -ARROW_LENGTH * 0.38);
+            const begin = end.clone().addScaledVector(toward, -0.1).setY(0.05);
+            const arrow = new Mesh(new PlaneGeometry(ARROW_LENGTH, ARROW_LENGTH / 4).rotateX(-Math.PI / 2), material);
+            arrow.rotation.y = -Math.atan2(toward.z, toward.x);
+            arrow.renderOrder = RENDER_ORDER + 2;
+            this.scene.add(arrow);
+            arrows.push(arrow);
+            await this.tween(ARROW_FLIGHT, (t)=>{arrow.position.lerpVectors(begin, end, t * t)});
+            // A gold spark where it hits, while the card shakes
+            const spark = new Mesh(new PlaneGeometry(SLOT * 0.9, SLOT * 0.9).rotateX(-Math.PI / 2), unlit({map:this.burstTexture(), color:0xffb040, ...effect}));
+            spark.position.copy(tip);
+            spark.renderOrder = RENDER_ORDER + 1;
+            this.scene.add(spark);
+            await this.tween(160, (t)=>{
+                const strength = ARROW_SHAKE * (1 - t);
+                object.position.set(origin.x + (Math.random() - 0.5) * strength, origin.y, origin.z + (Math.random() - 0.5) * strength);
+                (spark.material as MeshBasicMaterial).opacity = 1 - t;
+                spark.scale.setScalar(0.6 + 0.8 * t);
+            });
+            object.position.copy(origin);
+            this.scene.remove(spark);
+            spark.geometry.dispose();
+            (spark.material as Material).dispose();
+        };
+        await Promise.all([0, 1, 2].map(shoot));
+        await wait(140);
+        await this.tween(150, (t)=>{material.opacity = 1 - t});
+        arrows.forEach((a)=>{this.scene.remove(a); a.geometry.dispose()});
+        material.dispose();
+    }
+
+    private textures:Record<string, Texture> = {};
+
+    // Soft across its width, bright in the middle: the bolt's strips
+    private boltTexture():Texture{
+        return this.textures.bolt || (this.textures.bolt = this.canvasTexture(4, 64, (g)=>{
+            const gradient = g.createLinearGradient(0, 0, 0, 64);
+            gradient.addColorStop(0, "rgba(255,255,255,0)");
+            gradient.addColorStop(0.5, "rgba(255,255,255,1)");
+            gradient.addColorStop(1, "rgba(255,255,255,0)");
+            g.fillStyle = gradient;
+            g.fillRect(0, 0, 4, 64);
+        }));
+    }
+
+    // A round glow, for the flash where the bolt hits
+    private burstTexture():Texture{
+        return this.textures.burst || (this.textures.burst = this.canvasTexture(128, 128, (g)=>{
+            const gradient = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, "rgba(255,255,255,1)");
+            gradient.addColorStop(0.25, "rgba(255,255,255,0.6)");
+            gradient.addColorStop(1, "rgba(255,255,255,0)");
+            g.fillStyle = gradient;
+            g.fillRect(0, 0, 128, 128);
+        }));
+    }
+
+    // An arrow pointing right (+x), glowing: shaft, head and fletching
+    private arrowTexture():Texture{
+        // The arrow along the middle line, with room for its glow
+        return this.textures.arrow || (this.textures.arrow = this.canvasTexture(256, 64, (g)=>{
+            g.strokeStyle = g.fillStyle = g.shadowColor = "#fff";
+            g.lineCap = "round";
+            for(const [blur, width, alpha] of [[22, 10, 0.45], [10, 5, 0.8], [2, 2.5, 1]]){
+                g.shadowBlur = blur;
+                g.globalAlpha = alpha;
+                g.lineWidth = width;
+                g.beginPath();
+                g.moveTo(24, 32);
+                g.lineTo(224, 32);
+                // Fletching
+                g.moveTo(12, 22);
+                g.lineTo(36, 32);
+                g.lineTo(12, 42);
+                g.stroke();
+                g.beginPath();
+                g.moveTo(250, 32);
+                g.lineTo(218, 20);
+                g.lineTo(226, 32);
+                g.lineTo(218, 44);
+                g.closePath();
+                g.fill();
+            }
+        }));
+    }
+
+    private canvasTexture(width:number, height:number, draw:(g:CanvasRenderingContext2D)=>void):Texture{
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        draw(canvas.getContext("2d"));
+        return new CanvasTexture(canvas);
+    }
+
     // The whole play area shakes for a moment
-    private shake(){
+    private shake(power = 0.0025, duration = 260){
         const scene = this.scene;
         const origin = scene.position.clone();
-        this.tween(260, (t)=>{
-            const strength = 0.0025 * (1 - t);
+        this.tween(duration, (t)=>{
+            const strength = power * (1 - t);
             scene.position.set(origin.x + (Math.random() - 0.5) * strength, origin.y + (Math.random() - 0.5) * strength, origin.z + (Math.random() - 0.5) * strength);
         }).then(()=>{scene.position.copy(origin)});
     }

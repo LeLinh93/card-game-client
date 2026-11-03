@@ -4,7 +4,7 @@ import {Engine3D} from "../game/Engine3D";
 import {Board3D, DragKind, DropTarget, Row, Side} from "../game/Board3D";
 import {Connection} from "../game/connection";
 import {ActionQueue, wait} from "../game/actionQueue";
-import {DrawCardMessage, GameCard, isKnown, PlayerState, SelectionMessage, StartGameMessage, StateMessage} from "../game/protocol";
+import {DrawCardMessage, GameCard, isKnown, PlayerState, SelectionMessage, SkillDamageMessage, StartGameMessage, StateMessage} from "../game/protocol";
 import {Hand, handCardRect, HandCard} from "../components/Hand";
 import {CardView} from "../components/CardView";
 import {CardPicker} from "../components/CardPicker";
@@ -308,6 +308,10 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
                 effectTimer = window.setTimeout(()=>{setEffect(null)}, 2200);
                 await Promise.all([b.flash(sideOf(msg.isTurn), msg.card.id), wait(700)]);
             });
+        });
+        // A skill's damage: lightning or arrows hit the cards before their new health shows
+        c.on("skillDamageMessage", (msg:SkillDamageMessage)=>{
+            queue.add(()=>b.skillDamage(msg.kind, msg.targets.map(t => t.id)));
         });
         // A skill summons a card: the queue waits until the player has chosen its zone
         c.on("specialSummonMessage", (msg:{card:GameCard, isTurn:boolean})=>{

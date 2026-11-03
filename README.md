@@ -18,7 +18,9 @@ your hand) or from a list (deck, graveyard...); click a picked card again to let
 Spells and abilities that need a target are aimed with a line from the hand (a hint at the top says what
 to target); the others are dropped on the board. Any card dropped on the sphere is sacrificed. Traps flip
 up when they go off, each deck shows how many cards are left, the skill log (top left) lists every skill
-that went off, and Surrender (top right) gives the match to the opponent.
+that went off, and Surrender (top right) gives the match to the opponent. Magical damage from a skill
+strikes the card with a blue lightning bolt and shakes the view; physical damage from a skill hits it
+with three glowing arrows and shakes the card.
 
 ## Run
 
