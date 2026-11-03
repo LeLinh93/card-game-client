@@ -19,6 +19,7 @@ export interface GameCard{
     isAttack:boolean;
     activeLeft:number[];
     summonSick:boolean;
+    hero?:boolean;
     buffs:{name:string, source:string, [key:string]:any}[];
     // Spell and ability cards in the player's hand: whether playing it needs a target, the ids of the
     // field cards it can target now, and what to target ("Target an enemy Unit card")
@@ -52,6 +53,18 @@ export interface DrawCardMessage{
     card:GameCard;
     isTurn:boolean;
     order:number;
+}
+
+// Whether a card of the player's field can attack now: face up, a unit or structure with attack,
+// that hasn't attacked (and isn't summon sick) this turn
+export function canAttack(card:GameCard):boolean{
+    return !!card && !card.isHidden && (card.type === "unit" || card.type === "structure") && !card.isAttack && card.attack > 0;
+}
+
+// A face-up card can use its Active skill while it has uses left this turn and wasn't just summoned
+// (the server checks the cost)
+export function canUseActive(card:GameCard):boolean{
+    return !!card && !card.isHidden && !card.summonSick && (card.activeLeft || [])[0] > 0;
 }
 
 // A card the opponent can see: their hidden cards have no name

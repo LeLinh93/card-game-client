@@ -4,7 +4,7 @@ import {Engine3D} from "../game/Engine3D";
 import {Board3D, DragKind, DropTarget, Row, Side} from "../game/Board3D";
 import {Connection} from "../game/connection";
 import {ActionQueue, wait} from "../game/actionQueue";
-import {DrawCardMessage, GameCard, isKnown, PlayerState, SelectionMessage, SkillDamageMessage, StartGameMessage, StateMessage} from "../game/protocol";
+import {canAttack, canUseActive, DrawCardMessage, GameCard, isKnown, PlayerState, SelectionMessage, SkillDamageMessage, StartGameMessage, StateMessage} from "../game/protocol";
 import {Hand, handCardRect, HandCard} from "../components/Hand";
 import {CardView} from "../components/CardView";
 import {CardPicker} from "../components/CardPicker";
@@ -70,22 +70,12 @@ function canPlace(state:PlayerState, card:GameCard, row:Row, index:number):boole
     return (card.type === "structure" || card.type === "trap") && row === "back";
 }
 
-// Whether a card of the player's field can attack now: face up, a unit or structure with attack,
-// that hasn't attacked (and isn't summon sick) this turn
-function canAttack(card:GameCard):boolean{
-    return !!card && !card.isHidden && (card.type === "unit" || card.type === "structure") && !card.isAttack && card.attack > 0;
-}
-
-// A face-down structure can be turned face up; a face-up card can use its Active skill while it has
-// uses left this turn and wasn't just summoned (the server checks the cost)
+// A face-down structure can be turned face up; a face-up card can use its Active skill
 function canActivate(card:GameCard):boolean{
     if(!card){
         return false;
     }
-    if(card.isHidden){
-        return card.type === "structure";
-    }
-    return !card.summonSick && (card.activeLeft || [])[0] > 0;
+    return card.isHidden ? card.type === "structure" : canUseActive(card);
 }
 
 // The opponent can be attacked directly once nothing is left on their field

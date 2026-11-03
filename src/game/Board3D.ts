@@ -5,7 +5,7 @@ import {
 import {Engine3D} from "./Engine3D";
 import {cardCanvas, fieldSquareCanvas, squareCanvas, squareFrom} from "./cardTexture";
 import {CardFace, HAS_STATS} from "../components/CardView";
-import {GameCard, isKnown} from "./protocol";
+import {canAttack, canUseActive, GameCard, isKnown} from "./protocol";
 
 // Assets of the threngine project
 const CARD_GEOMETRY = "75lh4pn8";    // "cardGame": the meshes Card_Front and Card_Back
@@ -73,6 +73,11 @@ const GLOW_WHITE = 0xbfe9ff;
 const GLOW_GOLD = 0xffc65a;
 const GLOW_RED = 0xff4a3a;
 const GLOW_SOFT = 0.5;
+// Marks on field cards: how dark a card that can't attack gets (the engine blends in linear light,
+// so this looks like about 40% darker on screen)
+const DIM_OPACITY = 0.65;
+// The hero glow's plane, as many times the card's size: room for the halo outside the border
+const HERO_GLOW_SIZE = 1.25;
 // The disc with the number of cards left on top of each deck, in m
 const DECK_COUNTER_SIZE = 0.016;
 
@@ -91,11 +96,18 @@ interface Tween{
     done:()=>void;
 }
 
+// On a field card: a gold glow round a hero, a dark layer while it can't attack, a glowing
+// trapezoid in its top left corner while its Active skill can be used
+type Mark = "hero" | "dim" | "active";
+
 interface FieldCard{
     cardID:string;
     // What its picture shows: the card's picture, or its back while face down
     look:string;
     object:Object3D;
+    // The card as last told, and its marks (made when first shown)
+    card:GameCard;
+    marks:Partial<Record<Mark, Mesh>>;
 }
 
 const easeInOut = (t:number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -135,6 +147,13 @@ export class Board3D{
     private held:{cardID:string, object:Object3D} = null;
     private tweens:Tween[] = [];
     private frame:number = null;
+    // Whose turn it is: the Active mark shows on the player's turn only
+    private yourTurn = false;
+    // A field card's size (m) and how high its top is, for the marks on it
+    private squareSize:number;
+    private squareTop:number;
+    private markMaterials:Record<Mark, MeshBasicMaterial> = null;
+    private markFrame:number = null;
     private stopped = false;
 
     // handArea: where a side's hand is on screen, for cards that come from or go to it
@@ -166,6 +185,9 @@ export class Board3D{
         this.cardTemplate = cardTemplate;
         this.squareTemplate = squareTemplate;
         this.cardLength = new Box3().setFromObject(cardTemplate).getSize(new Vector3()).z;
+        const square = new Box3().setFromObject(squareTemplate);
+        this.squareSize = square.getSize(new Vector3()).x;
+        this.squareTop = square.max.y;
 
         (Object.keys(DECKS) as Side[]).forEach((side)=>{
             const box = new Box3().setFromObject(this.scene.getObjectByName(DECKS[side]));
@@ -200,6 +222,9 @@ export class Board3D{
         this.stopped = true;
         if(this.frame !== null){
             cancelAnimationFrame(this.frame);
+        }
+        if(this.markFrame !== null){
+            cancelAnimationFrame(this.markFrame);
         }
         this.tweens.forEach(t => t.done());
         this.tweens = [];
@@ -262,6 +287,7 @@ export class Board3D{
                 const current = this.field[side][row][i];
                 if(current && card && current.cardID === card.id){
                     this.setLook(current, card);
+                    this.setMarks(side, current, card);
                     continue;
                 }
                 if(current){
@@ -296,8 +322,9 @@ export class Board3D{
             object.position.copy(from.position);
             this.scene.add(object);
         }
-        const fieldCard:FieldCard = {cardID:card.id, look:null, object};
+        const fieldCard:FieldCard = {cardID:card.id, look:null, object, card, marks:{}};
         this.setLook(fieldCard, card);
+        this.setMarks(side, fieldCard, card);
         this.field[side][row][index] = fieldCard;
         const to = this.slotPosition(side, row, index);
         const fromScale = object.scale.x;
@@ -519,6 +546,156 @@ export class Board3D{
     // Face up on the player's turn; flipped over while the opponent plays
     setEndTurnButton(yourTurn:boolean, instant = false){
         this.engine.configurator.setAnimationGroup(END_TURN_ANIMATION, {position:{to:yourTurn ? 0 : 1}, instant}).catch((e)=>{console.log(e)});
+        this.yourTurn = yourTurn;
+        (["player", "opponent"] as Side[]).forEach((side)=>{
+            (["front", "back"] as Row[]).forEach((row)=>{
+                this.field[side][row].forEach(f => f && this.setMarks(side, f, f.card));
+            });
+        });
+    }
+
+    //marks-----------------------------------------------------------------------------------
+
+    // Heroes glow gold on both sides; the player's units and structures that can't attack are
+    // dimmed, and on their turn their cards whose Active skill can be used get the trapezoid
+    private setMarks(side:Side, fieldCard:FieldCard, card:GameCard){
+        fieldCard.card = card;
+        const shown = !card.isHidden && isKnown(card);
+        const mine = side === "player" && shown;
+        this.showMark(fieldCard, "hero", shown && !!card.hero);
+        this.showMark(fieldCard, "dim", mine && (card.type === "unit" || card.type === "structure") && !canAttack(card));
+        this.showMark(fieldCard, "active", mine && this.yourTurn && canUseActive(card));
+    }
+
+    private showMark(fieldCard:FieldCard, mark:Mark, on:boolean){
+        let mesh = fieldCard.marks[mark];
+        if(!on){
+            if(mesh){
+                mesh.visible = false;
+            }
+            return;
+        }
+        if(!mesh){
+            mesh = this.makeMark(mark);
+            fieldCard.object.add(mesh);
+            fieldCard.marks[mark] = mesh;
+        }
+        mesh.visible = true;
+        if(mark !== "dim" && this.markFrame === null){
+            this.markFrame = requestAnimationFrame(this.pulseMarks);
+        }
+    }
+
+    // The marks lie on the card (it lies flat, its top towards -Z), so they move with it
+    private makeMark(mark:Mark):Mesh{
+        if(!this.markMaterials){
+            const glowing = {transparent:true, blending:AdditiveBlending, depthWrite:false};
+            this.markMaterials = {
+                hero:unlit({map:this.heroGlowTexture(), ...glowing}),
+                dim:unlit({color:0x000000, transparent:true, opacity:DIM_OPACITY, depthWrite:false}),
+                // Over the card's picture (with the depth test, the picture hides it)
+                active:unlit({map:this.trapezoidTexture(), transparent:true, depthTest:false, depthWrite:false}),
+            };
+        }
+        const size = this.squareSize;
+        let geometry:PlaneGeometry;
+        let position:Vector3;
+        if(mark === "hero"){
+            geometry = new PlaneGeometry(size * HERO_GLOW_SIZE, size * HERO_GLOW_SIZE);
+            position = new Vector3(0, 0.0012, 0);
+        }
+        else if(mark === "dim"){
+            geometry = new PlaneGeometry(size, size);
+            position = new Vector3(0, this.squareTop + 0.0002, 0);
+        }
+        else{
+            const w = size * 0.36;
+            geometry = new PlaneGeometry(w, w);
+            position = new Vector3(-size / 2 + w * 0.5, this.squareTop + 0.0004, -size / 2 + w * 0.4);
+        }
+        geometry.rotateX(-Math.PI / 2);
+        const mesh = new Mesh(geometry, this.markMaterials[mark]);
+        mesh.position.copy(position);
+        mesh.renderOrder = mark === "hero" ? RENDER_ORDER - 1 : mark === "dim" ? 1 : 2;
+        return mesh;
+    }
+
+    // The hero glow and the Active mark pulse gently while any is shown
+    private pulseMarks = (now:number)=>{
+        const lit = (mark:Mark) => (["player", "opponent"] as Side[]).some(side => (["front", "back"] as Row[]).some(row =>
+            this.field[side][row].some(f => f && f.marks[mark] && f.marks[mark].visible)));
+        this.markMaterials.hero.opacity = 0.75 + 0.25 * Math.sin(now / 320);
+        this.markMaterials.active.opacity = 0.8 + 0.2 * Math.sin(now / 200);
+        this.markFrame = !this.stopped && (lit("hero") || lit("active")) ? requestAnimationFrame(this.pulseMarks) : null;
+    }
+
+    // A very thin gold line on the card's border with a soft orange halo outside it; nothing inside the card
+    private heroGlowTexture():Texture{
+        const size = 512;
+        return this.textures.hero || (this.textures.hero = this.canvasTexture(size, size, true, (g)=>{
+            const inset = size * (1 - 1 / HERO_GLOW_SIZE) / 2;
+            const rect = (pad:number)=>{
+                const x = inset - pad, w = size - 2 * x, r = 8 + pad;
+                g.beginPath();
+                g.moveTo(x + r, x);
+                g.arcTo(x + w, x, x + w, x + w, r);
+                g.arcTo(x + w, x + w, x, x + w, r);
+                g.arcTo(x, x + w, x, x, r);
+                g.arcTo(x, x, x + w, x, r);
+                g.closePath();
+            };
+            g.strokeStyle = g.shadowColor = "#ff8a1e";
+            g.shadowBlur = 14;
+            g.globalAlpha = 0.65;
+            g.lineWidth = 2;
+            rect(1);
+            g.stroke();
+            g.stroke();
+            g.strokeStyle = "#ffe3a0";
+            g.shadowColor = "#ffb347";
+            g.shadowBlur = 3;
+            g.globalAlpha = 1;
+            g.lineWidth = 2;
+            rect(1);
+            g.stroke();
+            // Only outward: clear everything over the card
+            g.globalCompositeOperation = "destination-out";
+            g.shadowBlur = 0;
+            rect(0);
+            g.fill();
+        }));
+    }
+
+    // A glowing cyan trapezoid, wider at the bottom, on a dark edge so it shows on any picture
+    private trapezoidTexture():Texture{
+        return this.textures.trapezoid || (this.textures.trapezoid = this.canvasTexture(128, 128, true, (g)=>{
+            const shape = ()=>{
+                g.beginPath();
+                g.moveTo(44, 40);
+                g.lineTo(84, 40);
+                g.lineTo(106, 88);
+                g.lineTo(22, 88);
+                g.closePath();
+            };
+            g.lineJoin = "round";
+            g.shadowColor = "rgba(0, 0, 0, 0.9)";
+            g.shadowBlur = 8;
+            g.strokeStyle = "rgba(0, 0, 0, 0.75)";
+            g.lineWidth = 10;
+            shape();
+            g.stroke();
+            g.shadowColor = "#5fe0ff";
+            g.shadowBlur = 18;
+            g.fillStyle = "#5fe0ff";
+            shape();
+            g.fill();
+            g.fill();
+            g.shadowBlur = 0;
+            g.strokeStyle = "#e6fbff";
+            g.lineWidth = 4;
+            shape();
+            g.stroke();
+        }));
     }
 
     //sphere----------------------------------------------------------------------------------
@@ -1208,7 +1385,7 @@ export class Board3D{
 
     // Soft across its width, bright in the middle: the bolt's strips
     private boltTexture():Texture{
-        return this.textures.bolt || (this.textures.bolt = this.canvasTexture(4, 64, (g)=>{
+        return this.textures.bolt || (this.textures.bolt = this.canvasTexture(4, 64, false, (g)=>{
             const gradient = g.createLinearGradient(0, 0, 0, 64);
             gradient.addColorStop(0, "rgba(255,255,255,0)");
             gradient.addColorStop(0.5, "rgba(255,255,255,1)");
@@ -1220,7 +1397,7 @@ export class Board3D{
 
     // A round glow, for the flash where the bolt hits
     private burstTexture():Texture{
-        return this.textures.burst || (this.textures.burst = this.canvasTexture(128, 128, (g)=>{
+        return this.textures.burst || (this.textures.burst = this.canvasTexture(128, 128, false, (g)=>{
             const gradient = g.createRadialGradient(64, 64, 0, 64, 64, 64);
             gradient.addColorStop(0, "rgba(255,255,255,1)");
             gradient.addColorStop(0.25, "rgba(255,255,255,0.6)");
@@ -1233,7 +1410,7 @@ export class Board3D{
     // An arrow pointing right (+x), glowing: shaft, head and fletching
     private arrowTexture():Texture{
         // The arrow along the middle line, with room for its glow
-        return this.textures.arrow || (this.textures.arrow = this.canvasTexture(256, 64, (g)=>{
+        return this.textures.arrow || (this.textures.arrow = this.canvasTexture(256, 64, false, (g)=>{
             g.strokeStyle = g.fillStyle = g.shadowColor = "#fff";
             g.lineCap = "round";
             for(const [blur, width, alpha] of [[22, 10, 0.45], [10, 5, 0.8], [2, 2.5, 1]]){
@@ -1259,12 +1436,17 @@ export class Board3D{
         }));
     }
 
-    private canvasTexture(width:number, height:number, draw:(g:CanvasRenderingContext2D)=>void):Texture{
+    // colored: the picture's own colours show as drawn (the others are white, tinted by their material)
+    private canvasTexture(width:number, height:number, colored:boolean, draw:(g:CanvasRenderingContext2D)=>void):Texture{
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
         draw(canvas.getContext("2d"));
-        return new CanvasTexture(canvas);
+        const texture = new CanvasTexture(canvas);
+        if(colored){
+            texture.encoding = sRGBEncoding;
+        }
+        return texture;
     }
 
     // The whole play area shakes for a moment
