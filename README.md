@@ -3,8 +3,9 @@
 The web client for playing the card game, replacing the old Unity client. It talks to
 [card-server](../card-server) and draws cards with the same template as card-website.
 
-So far it has the login, a main menu and the deck editor. Choosing a mode and pressing Play starts
-the match (Bot match: card-server's `botMatch`; Free match: the ranked queue) and loads the 3D play
+So far it has the login, a main menu, the deck editor and the friends. Choosing a mode and pressing Play starts
+the match (Bot match: card-server's `botMatch`; Free match: the ranked queue; Friend match: an online friend
+chosen in the play panel gets an invite, and the match starts once they accept) and loads the 3D play
 area with threngine (`src/game/Engine3D.ts`). In the match (`src/game/Board3D.ts`), the back rows are laid out from the decks and the drawn cards
 fly to the hands, which are HTML over the 3D canvas. On your turn, drag a hand card onto the sphere to
 sacrifice it for a resource, or onto a glowing zone of your field to summon it; the counters by the
@@ -24,6 +25,12 @@ with three glowing arrows and shakes the card. A card going to a graveyard (from
 deck) flies there as a blue comet, to its owner's tombstone by their deck; click a tombstone to see
 that graveyard. A banished card's comet flies into the sphere, which opens for it (a sacrificed card
 just sinks in).
+
+## Friends
+
+On the Friends tab, send a friend request by the player's exact name; they accept or delete it (a red
+"!" on the tab means a request is waiting). It lists your friends with who is online. While logged in
+the client keeps a socket open for this (`src/game/lobby.ts`), which also carries the match invites.
 
 ## Run
 

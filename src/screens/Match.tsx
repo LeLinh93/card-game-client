@@ -104,7 +104,8 @@ function canTarget(attacker:GameCard, target:GameCard, state:PlayerState):boolea
 // Cards are drawn from the decks; the player drags a hand card onto the sphere to sacrifice it
 // for a resource, or onto a zone of their field to summon it, drags a field card onto an opponent's
 // card to attack it, and activates their face-down structures.
-export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
+// friend: in a friend match, the friend whose invite was accepted
+export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:string, onLeave:()=>void}){
     const mount = useRef<HTMLDivElement>(null);
     const [loaded, setLoaded] = useState({scene:false, match:false});
     const [error, setError] = useState("");
@@ -416,7 +417,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
                 setLoaded(l => ({...l, scene:true}));
             }
         });
-        const match = c.login(props.token).then(()=>c.findMatch(props.mode)).then(()=>{
+        const match = c.login(props.token).then(()=>c.findMatch(props.mode, props.friend ? props.friend.id : null)).then(()=>{
             if(!left){
                 setLoaded(l => ({...l, match:true}));
             }
@@ -447,7 +448,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
             engine.stop();
             c.close();
         };
-    }, [props.mode, props.token]);
+    }, [props.mode, props.friend ? props.friend.id : null, props.token]);
 
     // Dragging a card from the hand, on the player's turn: over the sphere it is sacrificed, over a
     // zone it can go to it is summoned there; let go anywhere else, it goes back to the hand
@@ -732,7 +733,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
         }
     }
 
-    const waiting = !loaded.scene ? "Loading the play area…" : !loaded.match ? (props.mode === "free" ? "Looking for an opponent…" : "Starting the match…") : "";
+    const waiting = !loaded.scene ? "Loading the play area…" : !loaded.match ? (props.mode === "free" ? "Looking for an opponent…" : props.friend ? "Waiting for " + props.friend.name + "…" : "Starting the match…") : "";
 
     return(
         <div className="match-page" data-mode={props.mode}>

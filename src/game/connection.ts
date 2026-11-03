@@ -28,8 +28,9 @@ export class Connection{
         });
     }
 
-    // Asks for a match; resolves with the game id once the server made one (gameReady)
-    findMatch(mode:Mode):Promise<string>{
+    // Asks for a match; resolves with the game id once the server made one (gameReady). A friend
+    // match is with the friend whose invite was accepted (friendID); it starts once they ask too.
+    findMatch(mode:Mode, friendID:string = null):Promise<string>{
         return new Promise((resolve, reject)=>{
             this.socket.once("gameReady", (msg)=>{
                 this.gameID = msg.status;
@@ -43,7 +44,7 @@ export class Connection{
                 this.socket.emit("rankQueue", {});
             }
             else{
-                reject(new Error("Friend matches aren't ready yet."));
+                this.socket.emit("friendMatch", {friend:friendID});
             }
         });
     }

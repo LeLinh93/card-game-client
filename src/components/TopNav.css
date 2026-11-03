@@ -63,6 +63,26 @@
     box-shadow: 0 0 12px var(--accent-glow);
 }
 
+/* A red circle with a white "!" on a tab with something waiting (friend requests) */
+.nav-alert {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+    color: #fff;
+    background: #e0322b;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(18, 19, 23, 0.9), 0 0 8px rgba(224, 50, 43, 0.6);
+}
+
 .topnav-right {
     display: flex;
     align-items: center;

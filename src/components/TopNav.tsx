@@ -1,12 +1,13 @@
 import "./TopNav.css";
 
-export type Tab = "home" | "decks";
+export type Tab = "home" | "decks" | "friends";
 
-const TABS:{tab:Tab, label:string}[] = [{tab:"home", label:"Home"}, {tab:"decks", label:"Decks"}];
+const TABS:{tab:Tab, label:string}[] = [{tab:"home", label:"Home"}, {tab:"decks", label:"Decks"}, {tab:"friends", label:"Friends"}];
 
 // The header menu on every page after login, like card-website's: the tabs on the left,
-// the player and the log out button on the right
-export function TopNav(props:{tab:Tab, username:string, onTab:(tab:Tab)=>void, onLogout:()=>void}){
+// the player and the log out button on the right. alerts: tabs with something waiting for the
+// player (friend requests), marked with a red "!"
+export function TopNav(props:{tab:Tab, username:string, alerts?:Partial<Record<Tab, string>>, onTab:(tab:Tab)=>void, onLogout:()=>void}){
     return(
         <nav className="topnav">
             <div className="topnav-brand">Defender</div>
@@ -15,6 +16,7 @@ export function TopNav(props:{tab:Tab, username:string, onTab:(tab:Tab)=>void, o
                         aria-current={tab === props.tab ? "page" : undefined}
                         onClick={()=>{if(tab !== props.tab){props.onTab(tab)}}}>
                     {label}
+                    {props.alerts && props.alerts[tab] ? <span className="nav-alert" role="img" aria-label={props.alerts[tab]} title={props.alerts[tab]}>!</span> : null}
                 </button>
             ))}
             <div className="topnav-right">
