@@ -557,13 +557,14 @@ export class Board3D{
     //marks-----------------------------------------------------------------------------------
 
     // Heroes glow gold on both sides; the player's units and structures that can't attack are
-    // dimmed, and on their turn their cards whose Active skill can be used get the diamond
+    // dimmed (not those with no attack, which never can), and on their turn their cards whose
+    // Active skill can be used get the diamond
     private setMarks(side:Side, fieldCard:FieldCard, card:GameCard){
         fieldCard.card = card;
         const shown = !card.isHidden && isKnown(card);
         const mine = side === "player" && shown;
         this.showMark(fieldCard, "hero", shown && !!card.hero);
-        this.showMark(fieldCard, "dim", mine && (card.type === "unit" || card.type === "structure") && !canAttack(card));
+        this.showMark(fieldCard, "dim", mine && (card.type === "unit" || card.type === "structure") && card.attack > 0 && !canAttack(card));
         this.showMark(fieldCard, "active", mine && this.yourTurn && canUseActive(card));
     }
 
