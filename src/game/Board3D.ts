@@ -86,9 +86,11 @@ const RENDER_ORDER = 1000;
 // The engine blends in linear light, so a white this transparent looks like about 20% white on screen
 // (measured over the board: 0.045 brings it from about 40 to 79 of 255)
 const ZONE_OPACITY = 0.045;
-// A highlighted zone gets a soft glowing edge (a ring a little bigger than the zone, pulsing gently)
-const GLOW_SIZE = 1.5;
+// A highlighted zone gets a thin glowing edge (a ring a little bigger than the zone, pulsing gently)
+const GLOW_SIZE = 1.2;
 const GLOW_WHITE = 0xbfe9ff;
+// The zone a dragged card would go to
+const GLOW_BLUE = 0x4fa8ff;
 const GLOW_GOLD = 0xffc65a;
 const GLOW_RED = 0xff4a3a;
 const GLOW_SOFT = 0.5;
@@ -97,6 +99,8 @@ const GLOW_SOFT = 0.5;
 const DIM_OPACITY = 0.65;
 // The hero glow's plane, as many times the card's size: room for the halo outside the border
 const HERO_GLOW_SIZE = 1.25;
+// A card whose skill goes off blinks once (ms), a thin blue glow round its border
+const FLASH_TIME = 450;
 // The disc with the number of cards left on top of each deck, in m
 const DECK_COUNTER_SIZE = 0.016;
 
@@ -116,8 +120,11 @@ interface Tween{
 }
 
 // On a field card: a gold glow round a hero, a dark layer while it can't attack, a glowing
-// diamond in its top left corner while its Active skill can be used
-type Mark = "hero" | "dim" | "active";
+// diamond in its top left corner while its Active skill can be used, a thin gold border, and its
+// kind's symbol in the top right corner
+type Mark = "hero" | "dim" | "active" | "border" | "symbol";
+// The symbols: a white pawn for a unit, a white rook for a structure, a gold crown for a hero
+type CardSymbol = "pawn" | "rook" | "crown";
 
 interface FieldCard{
     cardID:string;
@@ -177,7 +184,8 @@ export class Board3D{
     // A field card's size (m) and how high its top is, for the marks on it
     private squareSize:number;
     private squareTop:number;
-    private markMaterials:Record<Mark, MeshBasicMaterial> = null;
+    private markMaterials:Record<Exclude<Mark, "symbol">, MeshBasicMaterial> = null;
+    private symbolMaterials:Record<CardSymbol, MeshBasicMaterial> = null;
     private markFrame:number = null;
     private stopped = false;
 
@@ -690,6 +698,7 @@ export class Board3D{
 
     //marks-----------------------------------------------------------------------------------
 
+    // Every field card has the gold border; face-up units, heroes and structures show their symbol.
     // Heroes glow gold on both sides; the player's units and structures that can't attack are
     // dimmed (not those with no attack, which never can), and on their turn their cards whose
     // Active skill can be used get the diamond
@@ -697,6 +706,12 @@ export class Board3D{
         fieldCard.card = card;
         const shown = !card.isHidden && isKnown(card);
         const mine = side === "player" && shown;
+        const symbol:CardSymbol = !shown ? null : card.hero ? "crown" : card.type === "unit" ? "pawn" : card.type === "structure" ? "rook" : null;
+        this.showMark(fieldCard, "border", true);
+        this.showMark(fieldCard, "symbol", symbol !== null);
+        if(symbol){
+            fieldCard.marks.symbol.material = this.symbolMaterials[symbol];
+        }
         this.showMark(fieldCard, "hero", shown && !!card.hero);
         this.showMark(fieldCard, "dim", mine && (card.type === "unit" || card.type === "structure") && card.attack > 0 && !canAttack(card));
         this.showMark(fieldCard, "active", mine && this.yourTurn && canUseActive(card));
@@ -716,7 +731,7 @@ export class Board3D{
             fieldCard.marks[mark] = mesh;
         }
         mesh.visible = true;
-        if(mark !== "dim" && this.markFrame === null){
+        if((mark === "hero" || mark === "active") && this.markFrame === null){
             this.markFrame = requestAnimationFrame(this.pulseMarks);
         }
     }
@@ -730,7 +745,10 @@ export class Board3D{
                 dim:unlit({color:0x000000, transparent:true, opacity:DIM_OPACITY, depthWrite:false}),
                 // Over the card's picture (with the depth test, the picture hides it)
                 active:unlit({map:this.diamondTexture(), transparent:true, depthTest:false, depthWrite:false}),
+                border:unlit({map:this.borderTexture(), transparent:true, depthTest:false, depthWrite:false}),
             };
+            const symbol = (texture:Texture) => unlit({map:texture, transparent:true, depthTest:false, depthWrite:false});
+            this.symbolMaterials = {pawn:symbol(this.pawnTexture()), rook:symbol(this.rookTexture()), crown:symbol(this.crownTexture())};
         }
         const size = this.squareSize;
         let geometry:PlaneGeometry;
@@ -743,15 +761,25 @@ export class Board3D{
             geometry = new PlaneGeometry(size, size);
             position = new Vector3(0, this.squareTop + 0.0002, 0);
         }
+        else if(mark === "border"){
+            geometry = new PlaneGeometry(size, size);
+            position = new Vector3(0, this.squareTop + 0.0001, 0);
+        }
+        else if(mark === "symbol"){
+            const w = size * 0.22;
+            geometry = new PlaneGeometry(w, w);
+            position = new Vector3(size / 2 - w * 0.7, this.squareTop + 0.0004, -size / 2 + w * 0.7);
+        }
         else{
             const w = size * 0.4;
             geometry = new PlaneGeometry(w, w);
             position = new Vector3(-size / 2 + w * 0.4, this.squareTop + 0.0004, -size / 2 + w * 0.45);
         }
         geometry.rotateX(-Math.PI / 2);
-        const mesh = new Mesh(geometry, this.markMaterials[mark]);
+        const mesh = new Mesh(geometry, mark === "symbol" ? this.symbolMaterials.pawn : this.markMaterials[mark]);
         mesh.position.copy(position);
-        mesh.renderOrder = mark === "hero" ? RENDER_ORDER - 1 : mark === "dim" ? 1 : 2;
+        // The border under the dark layer, the symbols and the diamond over it
+        mesh.renderOrder = {hero:RENDER_ORDER - 1, border:1, dim:2, symbol:3, active:3}[mark];
         // Not part of the card: its picture isn't put on the mark, and the pointer finds the card only
         mesh.userData.mark = true;
         mesh.raycast = ()=>{};
@@ -767,10 +795,123 @@ export class Board3D{
         this.markFrame = !this.stopped && (lit("hero") || lit("active")) ? requestAnimationFrame(this.pulseMarks) : null;
     }
 
+    // A thin gold line just inside the card's edge, in the gold of the hand cards' frame (much thinner)
+    private borderTexture():Texture{
+        const size = 512;
+        return this.textures.border || (this.textures.border = this.canvasTexture(size, size, true, (g)=>{
+            const gold = g.createLinearGradient(0, 0, 0, size);
+            gold.addColorStop(0, "#d8b98c");
+            gold.addColorStop(0.5, "#a87d56");
+            gold.addColorStop(1, "#c19e76");
+            g.strokeStyle = gold;
+            g.lineWidth = 4;
+            const x = 4, w = size - 8, r = 18;
+            g.beginPath();
+            g.moveTo(x + r, x);
+            g.arcTo(x + w, x, x + w, x + w, r);
+            g.arcTo(x + w, x + w, x, x + w, r);
+            g.arcTo(x, x + w, x, x, r);
+            g.arcTo(x, x, x + w, x, r);
+            g.closePath();
+            g.stroke();
+        }));
+    }
+
+    // The card kinds' symbols, simple shapes filled (white, or gold for the crown) with a dark
+    // shadow under them so they show on any picture
+    private symbolTexture(name:string, fill:(g:CanvasRenderingContext2D)=>string | CanvasGradient, shape:(g:CanvasRenderingContext2D)=>void):Texture{
+        return this.textures[name] || (this.textures[name] = this.canvasTexture(128, 128, true, (g)=>{
+            g.fillStyle = fill(g);
+            g.shadowColor = "rgba(0,0,0,0.85)";
+            g.shadowBlur = 8;
+            g.shadowOffsetY = 2;
+            g.beginPath();
+            shape(g);
+            g.fill();
+        }));
+    }
+
+    // A pawn: round head, collar and a flared body on a base
+    private pawnTexture():Texture{
+        return this.symbolTexture("pawn", () => "#ffffff", (g)=>{
+            g.arc(64, 34, 15, 0, Math.PI * 2);
+            g.moveTo(44, 54);
+            g.lineTo(84, 54);
+            g.lineTo(80, 62);
+            g.lineTo(74, 62);
+            g.quadraticCurveTo(76, 84, 90, 94);
+            g.lineTo(38, 94);
+            g.quadraticCurveTo(52, 84, 54, 62);
+            g.lineTo(48, 62);
+            g.closePath();
+            g.rect(32, 98, 64, 12);
+        });
+    }
+
+    // A rook: a battlement of three merlons on a tower, on a base
+    private rookTexture():Texture{
+        return this.symbolTexture("rook", () => "#ffffff", (g)=>{
+            g.moveTo(34, 20);
+            g.lineTo(48, 20);
+            g.lineTo(48, 30);
+            g.lineTo(57, 30);
+            g.lineTo(57, 20);
+            g.lineTo(71, 20);
+            g.lineTo(71, 30);
+            g.lineTo(80, 30);
+            g.lineTo(80, 20);
+            g.lineTo(94, 20);
+            g.lineTo(94, 46);
+            g.lineTo(84, 52);
+            g.lineTo(86, 92);
+            g.lineTo(42, 92);
+            g.lineTo(44, 52);
+            g.lineTo(34, 46);
+            g.closePath();
+            g.rect(32, 96, 64, 14);
+        });
+    }
+
+    // A crown: three points with a ball on each, over a band
+    private crownTexture():Texture{
+        return this.symbolTexture("crown", (g)=>{
+            const gold = g.createLinearGradient(0, 24, 0, 104);
+            gold.addColorStop(0, "#fff0b8");
+            gold.addColorStop(0.5, "#f5c94f");
+            gold.addColorStop(1, "#c98a1c");
+            return gold;
+        }, (g)=>{
+            g.moveTo(26, 86);
+            g.lineTo(22, 42);
+            g.lineTo(44, 64);
+            g.lineTo(64, 32);
+            g.lineTo(84, 64);
+            g.lineTo(106, 42);
+            g.lineTo(102, 86);
+            g.closePath();
+            g.rect(26, 92, 76, 14);
+            [[22, 38], [64, 26], [106, 38]].forEach(([x, y])=>{
+                g.moveTo(x + 7, y);
+                g.arc(x, y, 7, 0, Math.PI * 2);
+            });
+        });
+    }
+
     // A very thin gold line on the card's border with a soft orange halo outside it; nothing inside the card
     private heroGlowTexture():Texture{
+        return this.edgeGlowTexture("hero", "#ffe3a0", "#ffb347", "#ff8a1e");
+    }
+
+    // The same thin line in light blue with a blue halo, for a card whose skill goes off
+    private skillGlowTexture():Texture{
+        return this.edgeGlowTexture("skill", "#e0f4ff", "#7cc8ff", "#2f8cff");
+    }
+
+    // A very thin line on the card's border (with a tight glow of lineGlow) and a soft halo outside it;
+    // nothing inside the card. For a plane HERO_GLOW_SIZE times the card's size.
+    private edgeGlowTexture(name:string, line:string, lineGlow:string, halo:string):Texture{
         const size = 512;
-        return this.textures.hero || (this.textures.hero = this.canvasTexture(size, size, true, (g)=>{
+        return this.textures[name] || (this.textures[name] = this.canvasTexture(size, size, true, (g)=>{
             const inset = size * (1 - 1 / HERO_GLOW_SIZE) / 2;
             const rect = (pad:number)=>{
                 const x = inset - pad, w = size - 2 * x, r = 8 + pad;
@@ -782,15 +923,15 @@ export class Board3D{
                 g.arcTo(x, x, x + w, x, r);
                 g.closePath();
             };
-            g.strokeStyle = g.shadowColor = "#ff8a1e";
+            g.strokeStyle = g.shadowColor = halo;
             g.shadowBlur = 14;
             g.globalAlpha = 0.65;
             g.lineWidth = 2;
             rect(1);
             g.stroke();
             g.stroke();
-            g.strokeStyle = "#ffe3a0";
-            g.shadowColor = "#ffb347";
+            g.strokeStyle = line;
+            g.shadowColor = lineGlow;
             g.shadowBlur = 3;
             g.globalAlpha = 1;
             g.lineWidth = 2;
@@ -1080,7 +1221,7 @@ export class Board3D{
         (["front", "back"] as Row[]).forEach((row)=>{
             this.zones.player[row].forEach((mesh, i)=>{
                 const on = zone !== null && zone.row === row && zone.index === i;
-                this.light(mesh, on ? 1 : 0, GLOW_GOLD);
+                this.light(mesh, on ? 1 : 0, GLOW_BLUE);
             });
         });
     }
@@ -1153,15 +1294,15 @@ export class Board3D{
         };
         g.strokeStyle = "#fff";
         g.shadowColor = "#fff";
-        // A wide faint halo, then a narrow bright line on the edge
-        g.shadowBlur = 30;
-        g.lineWidth = 16;
-        g.globalAlpha = 0.7;
-        rect(3);
+        // A tight faint halo, then a narrow bright line on the edge
+        g.shadowBlur = 10;
+        g.lineWidth = 6;
+        g.globalAlpha = 0.6;
+        rect(2);
         g.stroke();
         g.stroke();
-        g.shadowBlur = 12;
-        g.lineWidth = 5;
+        g.shadowBlur = 5;
+        g.lineWidth = 3;
         g.globalAlpha = 1;
         rect(0);
         g.stroke();
@@ -1623,21 +1764,31 @@ export class Board3D{
         await wait(460);
     }
 
-    // A card whose skill goes off pulses on its zone, which glows gold
+    // A card whose skill goes off blinks once: it swells a little with a thin blue glow round its border
     async flash(side:Side, cardID:string){
         const found = this.fieldCard(side, cardID);
         if(!found){
             return;
         }
         const object = found.card.object;
-        const zone = this.zones[side][found.row][found.index];
-        await this.tween(700, (t)=>{
-            const pulse = Math.abs(Math.sin(Math.PI * 2 * t));
-            object.scale.setScalar(1 + 0.15 * pulse);
-            this.light(zone, Math.max(0.05, pulse), GLOW_GOLD);
+        const size = this.squareSize * HERO_GLOW_SIZE;
+        const material = unlit({map:this.skillGlowTexture(), transparent:true, blending:AdditiveBlending, depthWrite:false, opacity:0});
+        const glow = new Mesh(new PlaneGeometry(size, size).rotateX(-Math.PI / 2), material);
+        glow.position.y = 0.0012;
+        glow.renderOrder = RENDER_ORDER - 1;
+        // Not part of the card: it keeps its material and isn't hit by the pointer
+        glow.userData.mark = true;
+        glow.raycast = ()=>{};
+        object.add(glow);
+        await this.tween(FLASH_TIME, (t)=>{
+            const pulse = Math.sin(Math.PI * t);
+            object.scale.setScalar(1 + 0.08 * pulse);
+            material.opacity = pulse;
         });
         object.scale.setScalar(1);
-        this.light(zone, 0, GLOW_GOLD);
+        glow.removeFromParent();
+        glow.geometry.dispose();
+        material.dispose();
     }
 
     private toScreen(point:Vector3):{x:number, y:number}{
