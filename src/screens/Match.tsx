@@ -9,10 +9,13 @@ import {Hand, handCardRect, HandCard} from "../components/Hand";
 import {CardView} from "../components/CardView";
 import {CardPicker} from "../components/CardPicker";
 import {SkillLog, SkillLogEntry} from "../components/SkillLog";
+import {GraveyardList} from "../components/GraveyardList";
 import {Mode} from "./Home";
 
 // Time between two cards leaving the deck when several are drawn in a row
 const DRAW_GAP = 160;
+// Time between two comets when several cards go to a graveyard at once
+const COMET_GAP = 90;
 // How long to wait for the server's answer to a sacrifice or summon before taking the card back
 const ANSWER_TIMEOUT = 5000;
 
@@ -128,6 +131,8 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
     const [result, setResult] = useState<"won" | "lost">(null);
     // A skill summons a card: the player chooses a free zone for it, on their field or the opponent's
     const [placing, setPlacing] = useState<{card:GameCard, side:Side, zones:{row:Row, index:number}[]}>(null);
+    // The graveyard shown, after clicking its tombstone
+    const [graveyard, setGraveyard] = useState<Side>(null);
     const placeDone = useRef<()=>void>(null);
     const pickDone = useRef<()=>void>(null);
 
@@ -155,8 +160,40 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
         const sideOf = (isTurn:boolean):Side => isTurn ? "player" : "opponent";
         const otherSide = (side:Side):Side => side === "player" ? "opponent" : "player";
 
+        // Cards new in a graveyard or banished fly there as comets (to the owner's tombstone, or into the
+        // sphere), from where they were: the field, their owner's hand or graveyard, or else the owner's
+        // deck. They are only for show: nothing waits for them. A sacrificed card is banished too, but
+        // it has already sunk into the sphere.
+        const toPiles = (before:Record<Side, PlayerState>, after:Record<Side, PlayerState>, sacrifice:boolean)=>{
+            let delay = 0;
+            const added = (was:GameCard[], now:GameCard[])=>{
+                const known = new Set((was || []).filter(c => c).map(c => c.id));
+                return (now || []).filter(c => c && !known.has(c.id));
+            };
+            (["player", "opponent"] as Side[]).forEach((owner)=>{
+                const was = before[owner], now = after[owner];
+                if(!was || !now){
+                    return;
+                }
+                const fly = (pile:"graveyard" | "banish", card:GameCard)=>{
+                    const onField = [before.player, before.opponent].some(s => s && s.frontline.concat(s.backline).some(f => f && f.id === card.id));
+                    const inHand = was.hand.some(h => h && h.id === card.id);
+                    const inGraveyard = was.graveyard.some(g => g && g.id === card.id);
+                    const from = onField ? "field" : inHand ? "hand" : inGraveyard ? "graveyard" : "deck";
+                    b.toPile(pile, owner, card.id, from, inHand ? handCardRect(owner, card.id) : null, delay);
+                    delay += COMET_GAP;
+                };
+                added(was.graveyard, now.graveyard).forEach(card => fly("graveyard", card));
+                // An older server sends no banish list: nothing to compare
+                if(!sacrifice && was.banish && now.banish){
+                    added(was.banish, now.banish).forEach(card => fly("banish", card));
+                }
+            });
+        };
+
         // The board and the hands take the server's state
-        const setState = (me:PlayerState, them:PlayerState)=>{
+        const setState = (me:PlayerState, them:PlayerState, sacrifice = false)=>{
+            toPiles({player:player.current, opponent:opponent.current}, {player:me, opponent:them}, sacrifice);
             player.current = me;
             opponent.current = them;
             opponentHand = them.hand;
@@ -250,7 +287,7 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
                 else if(msg.opponent.hand.length < opponentHand.length){
                     await b.sacrificeFrom("opponent");
                 }
-                await setState(msg.player, msg.opponent);
+                await setState(msg.player, msg.opponent, true);
             });
         });
         // A summoned card moves onto its zone: the player's from where it was dropped
@@ -575,8 +612,10 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
             setInspected(hit && isKnown(hit.card) && (!hit.card.isHidden || hit.side === "player") ? hit.card : null);
             return;
         }
-        // The End Turn button can be pressed on the player's turn
-        (e.currentTarget as HTMLElement).style.cursor = loaded.scene && turn.current && board.current.endTurnButtonAt(e.clientX, e.clientY) ? "pointer" : "";
+        // The End Turn button can be pressed on the player's turn, the tombstones any time
+        const button = loaded.scene && turn.current && board.current.endTurnButtonAt(e.clientX, e.clientY);
+        const tombstone = loaded.scene && loaded.match && !!board.current.tombstoneAt(e.clientX, e.clientY);
+        (e.currentTarget as HTMLElement).style.cursor = button || tombstone ? "pointer" : "";
         const hit = fieldCardAt(e.clientX, e.clientY);
         const readable = hit && isKnown(hit.card) && (!hit.card.isHidden || hit.side === "player") ? hit.card : null;
         setInspected(readable);
@@ -618,6 +657,11 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
                 togglePick(hit.card);
             }
             return;
+        }
+        // Either tombstone shows its graveyard, on either turn
+        const tombstone = loaded.match && !error ? board.current.tombstoneAt(e.clientX, e.clientY) : null;
+        if(tombstone){
+            return setGraveyard(tombstone);
         }
         if(!turn.current || pending.current || heldID || error || result){
             return;
@@ -743,6 +787,11 @@ export function Match(props:{mode:Mode, token:string, onLeave:()=>void}){
             ) : null}
             {pick && pick.mode === "list" ? (
                 <CardPicker message={pick.message} cards={pick.cards} picked={pick.picked} amount={pick.amount} onToggle={togglePick} onConfirm={confirmPick}/>
+            ) : null}
+            {graveyard ? (
+                <GraveyardList title={graveyard === "player" ? "Your graveyard" : "Your opponent's graveyard"}
+                               cards={((graveyard === "player" ? player.current : opponent.current) || {graveyard:[]} as PlayerState).graveyard}
+                               onClose={()=>{setGraveyard(null)}}/>
             ) : null}
             {effect ? (
                 <div key={effect.key} className="match-effect" role="status">

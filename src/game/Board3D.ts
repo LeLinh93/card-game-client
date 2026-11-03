@@ -1,5 +1,5 @@
 import {
-    AdditiveBlending, Box3, BufferGeometry, CanvasTexture, DoubleSide, Euler, Float32BufferAttribute, Material, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Plane, PlaneGeometry,
+    AdditiveBlending, Box3, BufferGeometry, CanvasTexture, Color, DoubleSide, Euler, Float32BufferAttribute, Material, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Plane, PlaneGeometry,
     Quaternion, Raycaster, RepeatWrapping, sRGBEncoding, Texture, Vector2, Vector3
 } from "three";
 import {Engine3D} from "./Engine3D";
@@ -18,22 +18,33 @@ const END_TURN_ANIMATION = "qfirstje";
 const END_TURN_BUTTON = "BUTTON";
 // Objects of the play area: the player sits on the near side
 const DECKS = {player:"Deck1", opponent:"Deck"};
-const SPHERE = "Sphere_gizmo";
+// The sphere's two halves (Sphere, Sphere001) open and close under it; "Sphere_gizmo" has no meshes
+const SPHERE = "gate_gizmo";
 // Each player's portal, in the corner of their side: an attacker dropped on the opponent's attacks
 // them directly, once their field is empty
 const PORTALS = {player:"Av1", opponent:"Av"};
 const PORTAL_REACH = 0.024;
 // The "24" next to each deck: 3D text, replaced by a counter of the side's resources
 const COUNTERS = {player:"Text001", opponent:"Text"};
-const COUNTER_FACES = {player:"polySurface21001", opponent:"polySurface21"};
+const COUNTER_FACES = {player:"polySurface20001", opponent:"polySurface20"};
+// Each player's tombstone, by their deck: clicking it shows their graveyard
+const TOMBSTONES = {player:"Graveyard001", opponent:"Graveyard"};
 
+// The SquareCard model is drawn this many times its size, and the field's zones with it. 1.3 is
+// about the most the back rows take: they lie between the portraits (x up to -0.107) and the decks
+// (x from 0.088), 0.195 m, and five slots at 1.5 would be 0.198 m without any gap.
+const SQUARE_SCALE = 1.2;
 // The field, in m: 5 slots per row, numbered 0 to 4 from left to right as the player sees them
-const SLOT = 0.0264;
-const SLOT_GAP = 0.003;
-// Centred in the gold ring (polySurface13, middle at x -0.003), a little left of it so the right
-// ends of the back rows stay clear of the decks
-const FIELD_X = -0.004;
-const ROWS = {player:{front:0.003, back:0.034}, opponent:{front:-0.036, back:-0.067}};
+const SLOT = 0.0264 * SQUARE_SCALE;
+const SLOT_GAP = 0.003 * SQUARE_SCALE;
+// Centred between the portraits and the decks, so the back rows stay clear of both
+const FIELD_X = -0.0096;
+// The rows spread out from the middle line between the two sides, level with the sphere
+const FIELD_MIDDLE = -0.0165;
+const ROWS = {
+    player:{front:FIELD_MIDDLE + 0.0195 * SQUARE_SCALE, back:FIELD_MIDDLE + 0.0505 * SQUARE_SCALE},
+    opponent:{front:FIELD_MIDDLE - 0.0195 * SQUARE_SCALE, back:FIELD_MIDDLE - 0.0505 * SQUARE_SCALE},
+};
 // How far a dragged card floats above the board; it stays the size of a zone
 const DRAG_HEIGHT = 0.012;
 const DRAG_SCALE = 1;
@@ -57,6 +68,14 @@ const ARROW_LENGTH = 0.03;
 const ARROW_FLIGHT = 90;
 const ARROW_GAP = 70;
 const ARROW_SHAKE = 0.0016;
+// A card going to the graveyard: a blue comet flies to the tombstone. Its head's size, its tail's
+// width and length (as a part of the flight), how high it arcs (m) and how long it flies (ms)
+const COMET_SIZE = 0.012;
+const COMET_WIDTH = 0.005;
+const COMET_TAIL = 0.4;
+const COMET_ARC = 0.035;
+const COMET_TIME = 520;
+const COMET_COLOR = 0x5fc4ff;
 
 const DRAW_TIME = 550;
 const PLACE_TIME = 380;
@@ -133,7 +152,13 @@ export class Board3D{
     private decks:Record<Side, Vector3> = {player:null, opponent:null};
     private sphere:Vector3;
     private sphereOpen = false;
+    // Whether a card over the sphere or going into it wants it open, and how many banish comets are
+    // flying into it: it stays open while either does
+    private sphereWanted = false;
+    private banishing = 0;
     private portals:Record<Side, Vector3> = {player:null, opponent:null};
+    // The middle of each tombstone, where the comets go
+    private tombstones:Record<Side, Vector3> = {player:null, opponent:null};
     // The glow over the opponent's portal: off, open (the field is empty) or aimed at
     private portalGlow:{mesh:Mesh, level:number} = null;
     private counters:Record<Side, {canvas:HTMLCanvasElement, texture:Texture, value:number}> = {player:null, opponent:null};
@@ -183,6 +208,11 @@ export class Board3D{
         squareBack.encoding = sRGBEncoding;
         this.squareBackMaterial = unlit({map:squareBack});
         this.cardTemplate = cardTemplate;
+        // Scaled inside, as the cards' own scale is set by the animations (1 when still)
+        squareTemplate.children.forEach((child)=>{
+            child.scale.multiplyScalar(SQUARE_SCALE);
+            child.position.multiplyScalar(SQUARE_SCALE);
+        });
         this.squareTemplate = squareTemplate;
         this.cardLength = new Box3().setFromObject(cardTemplate).getSize(new Vector3()).z;
         const square = new Box3().setFromObject(squareTemplate);
@@ -209,6 +239,8 @@ export class Board3D{
         (Object.keys(PORTALS) as Side[]).forEach((side)=>{
             const portal = this.scene.getObjectByName(PORTALS[side]);
             this.portals[side] = portal ? new Box3().setFromObject(portal).getCenter(new Vector3()) : null;
+            const tombstone = this.scene.getObjectByName(TOMBSTONES[side]);
+            this.tombstones[side] = tombstone ? new Box3().setFromObject(tombstone).getCenter(new Vector3()) : null;
         });
     }
 
@@ -543,6 +575,108 @@ export class Board3D{
         return ray.intersectObject(button, true).length > 0;
     }
 
+    //graveyards------------------------------------------------------------------------------
+
+    // Whose tombstone is at this point of the screen, if any
+    tombstoneAt(x:number, y:number):Side{
+        const view = this.engine.mount.getBoundingClientRect();
+        const ray = new Raycaster();
+        this.camera.updateMatrixWorld();
+        ray.setFromCamera(new Vector2(((x - view.left) / view.width) * 2 - 1, -(((y - view.top) / view.height) * 2 - 1)), this.camera);
+        return (Object.keys(TOMBSTONES) as Side[]).find((side)=>{
+            const tombstone = this.scene.getObjectByName(TOMBSTONES[side]);
+            return tombstone && ray.intersectObject(tombstone, true).length > 0;
+        }) || null;
+    }
+
+    // A card went to its owner's graveyard, or was banished: a comet flies from where the card was (a
+    // field card on either side, the owner's hand (handRect: the card in it), their tombstone or their
+    // deck) to the owner's tombstone, or into the sphere, which opens its mouth for it. Call it before
+    // the field drops the card, which takes where it was at once; the flight starts after delay (ms).
+    toPile(pile:"graveyard" | "banish", owner:Side, cardID:string, from:"field" | "hand" | "graveyard" | "deck", handRect:DOMRect = null, delay = 0):Promise<void>{
+        const end = pile === "graveyard" ? this.tombstones[owner] : this.sphere;
+        if(this.stopped || !end){
+            return Promise.resolve();
+        }
+        let start:Vector3 = null;
+        if(from === "field"){
+            const found = this.fieldCard("player", cardID) || this.fieldCard("opponent", cardID);
+            start = found ? found.card.object.position.clone().setY(0.004) : null;
+        }
+        else if(from === "hand"){
+            start = this.screenPoint(handRect || this.handArea(owner));
+        }
+        else if(from === "graveyard" && this.tombstones[owner]){
+            start = this.tombstones[owner].clone();
+        }
+        start = start || this.decks[owner].clone();
+        if(pile === "graveyard"){
+            return wait(delay).then(()=>this.comet(start, end.clone()));
+        }
+        // Into the mouth, a little above the sphere's middle; it closes once the last comet is in
+        return wait(delay).then(async ()=>{
+            this.banishing++;
+            this.updateSphere();
+            await this.comet(start, end.clone().setY(end.y + 0.004));
+            this.banishing--;
+            this.updateSphere();
+        });
+    }
+
+    // A glowing blue ball with a fading tail arcs from start to end, and flares out there
+    private async comet(start:Vector3, end:Vector3){
+        if(this.stopped){
+            return;
+        }
+        const effect = {transparent:true, blending:AdditiveBlending, depthTest:false, depthWrite:false, side:DoubleSide};
+        const headMaterial = unlit({map:this.burstTexture(), color:COMET_COLOR, ...effect});
+        const coreMaterial = unlit({map:this.burstTexture(), color:0xeaf8ff, ...effect});
+        const tailMaterial = unlit({map:this.boltTexture(), vertexColors:true, ...effect});
+        const head = new Mesh(new PlaneGeometry(COMET_SIZE, COMET_SIZE), headMaterial);
+        const core = new Mesh(new PlaneGeometry(COMET_SIZE * 0.4, COMET_SIZE * 0.4), coreMaterial);
+        head.add(core);
+        head.renderOrder = RENDER_ORDER + 3;
+        core.renderOrder = RENDER_ORDER + 4;
+        const tail = new Mesh(new BufferGeometry(), tailMaterial);
+        tail.renderOrder = RENDER_ORDER + 2;
+        tail.frustumCulled = false;
+        this.scene.add(head, tail);
+        // Along the flight (0 to 1), eased, with an arc over the board
+        const at = (s:number)=>{
+            const e = easeInOut(Math.min(1, Math.max(0, s)));
+            const p = start.clone().lerp(end, e);
+            p.y += Math.sin(Math.PI * e) * COMET_ARC;
+            return p;
+        };
+        const facing = this.camera.getWorldQuaternion(new Quaternion());
+        // The head flies to the tombstone, then the tail catches up while the head flares out
+        await this.tween(COMET_TIME * (1 + COMET_TAIL), (t)=>{
+            const s = t * (1 + COMET_TAIL);
+            head.position.copy(at(s));
+            head.quaternion.copy(facing);
+            if(s > 1){
+                const flare = (s - 1) / COMET_TAIL;
+                head.scale.setScalar(1 + 1.5 * flare);
+                headMaterial.opacity = coreMaterial.opacity = 1 - flare;
+            }
+            const from = Math.max(0, s - COMET_TAIL), to = Math.min(1, s);
+            tail.geometry.dispose();
+            if(to - from > 0.01){
+                const points:Vector3[] = [];
+                for(let i = 0; i <= 12; i++){
+                    points.push(at(from + (to - from) * i / 12));
+                }
+                tail.geometry = this.ribbon(points, COMET_WIDTH, COMET_COLOR);
+            }
+            else{
+                tail.geometry = new BufferGeometry();
+            }
+        });
+        this.scene.remove(head, tail);
+        [head.geometry, core.geometry, tail.geometry].forEach(g => g.dispose());
+        [headMaterial, coreMaterial, tailMaterial].forEach(m => m.dispose());
+    }
+
     // Face up on the player's turn; flipped over while the opponent plays
     setEndTurnButton(yourTurn:boolean, instant = false){
         this.engine.configurator.setAnimationGroup(END_TURN_ANIMATION, {position:{to:yourTurn ? 0 : 1}, instant}).catch((e)=>{console.log(e)});
@@ -705,6 +839,12 @@ export class Board3D{
     //sphere----------------------------------------------------------------------------------
 
     private setSphereOpen(open:boolean){
+        this.sphereWanted = open;
+        this.updateSphere();
+    }
+
+    private updateSphere(){
+        const open = this.sphereWanted || this.banishing > 0;
         if(this.sphereOpen === open){
             return;
         }
@@ -1314,16 +1454,23 @@ export class Board3D{
         return [main, path(at, fork, 5, 0.008)];
     }
 
-    // A strip along the points, "width" wide and turned to the camera; the texture runs across it
-    private ribbon(points:Vector3[], width:number):BufferGeometry{
+    // A strip along the points, "width" wide and turned to the camera; the texture runs across it.
+    // With a fade colour, it is a tail: thin and dark at the first point, full and that colour at the last.
+    private ribbon(points:Vector3[], width:number, fade:number = null):BufferGeometry{
         const eye = this.camera.getWorldPosition(new Vector3());
-        const positions:number[] = [], uvs:number[] = [], index:number[] = [];
+        const positions:number[] = [], uvs:number[] = [], colors:number[] = [], index:number[] = [];
+        const color = fade === null ? null : new Color(fade);
         points.forEach((p, i)=>{
+            const u = i / (points.length - 1);
             const along = points[Math.min(i + 1, points.length - 1)].clone().sub(points[Math.max(i - 1, 0)]);
-            const across = along.cross(eye.clone().sub(p)).normalize().multiplyScalar(width / 2);
+            const across = along.cross(eye.clone().sub(p)).normalize().multiplyScalar(width / 2 * (color ? 0.25 + 0.75 * u : 1));
             const a = p.clone().add(across), b = p.clone().sub(across);
             positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
-            uvs.push(i / (points.length - 1), 0, i / (points.length - 1), 1);
+            uvs.push(u, 0, u, 1);
+            if(color){
+                const c = color.clone().multiplyScalar(u * u);
+                colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
+            }
             if(i > 0){
                 const k = i * 2;
                 index.push(k - 2, k - 1, k, k - 1, k + 1, k);
@@ -1332,6 +1479,9 @@ export class Board3D{
         const geometry = new BufferGeometry();
         geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
         geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+        if(color){
+            geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+        }
         geometry.setIndex(index);
         return geometry;
     }

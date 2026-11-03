@@ -57,6 +57,11 @@
     transform: translateY(-8px);
 }
 
+/* A card in a graveyard: only shown, not picked */
+.graveyard-card {
+    flex: none;
+}
+
 .picker-empty {
     margin: 30px 40px;
     color: var(--muted);
@@ -74,7 +79,8 @@
 }
 
 @media (max-width: 700px) {
-    .picker-card .card-scale {
+    .picker-card .card-scale,
+    .graveyard-card .card-scale {
         zoom: 0.3 !important;
     }
 }

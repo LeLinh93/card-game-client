@@ -20,7 +20,10 @@ to target); the others are dropped on the board. Any card dropped on the sphere 
 up when they go off, each deck shows how many cards are left, the skill log (top left) lists every skill
 that went off, and Surrender (top right) gives the match to the opponent. Magical damage from a skill
 strikes the card with a blue lightning bolt and shakes the view; physical damage from a skill hits it
-with three glowing arrows and shakes the card.
+with three glowing arrows and shakes the card. A card going to a graveyard (from the field, a hand or a
+deck) flies there as a blue comet, to its owner's tombstone by their deck; click a tombstone to see
+that graveyard. A banished card's comet flies into the sphere, which opens for it (a sacrificed card
+just sinks in).
 
 ## Run
 

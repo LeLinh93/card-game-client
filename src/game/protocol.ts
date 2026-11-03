@@ -35,6 +35,8 @@ export interface PlayerState{
     frontline:GameCard[];
     backline:GameCard[];
     graveyard:GameCard[];
+    // Banished cards, sacrificed ones too (the opponent's hidden). An older server doesn't send it.
+    banish?:GameCard[];
 }
 
 // Every game message carries "order", the server's count of actions; they arrive in that order
