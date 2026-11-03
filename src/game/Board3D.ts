@@ -97,7 +97,7 @@ interface Tween{
 }
 
 // On a field card: a gold glow round a hero, a dark layer while it can't attack, a glowing
-// trapezoid in its top left corner while its Active skill can be used
+// diamond in its top left corner while its Active skill can be used
 type Mark = "hero" | "dim" | "active";
 
 interface FieldCard{
@@ -557,7 +557,7 @@ export class Board3D{
     //marks-----------------------------------------------------------------------------------
 
     // Heroes glow gold on both sides; the player's units and structures that can't attack are
-    // dimmed, and on their turn their cards whose Active skill can be used get the trapezoid
+    // dimmed, and on their turn their cards whose Active skill can be used get the diamond
     private setMarks(side:Side, fieldCard:FieldCard, card:GameCard){
         fieldCard.card = card;
         const shown = !card.isHidden && isKnown(card);
@@ -594,7 +594,7 @@ export class Board3D{
                 hero:unlit({map:this.heroGlowTexture(), ...glowing}),
                 dim:unlit({color:0x000000, transparent:true, opacity:DIM_OPACITY, depthWrite:false}),
                 // Over the card's picture (with the depth test, the picture hides it)
-                active:unlit({map:this.trapezoidTexture(), transparent:true, depthTest:false, depthWrite:false}),
+                active:unlit({map:this.diamondTexture(), transparent:true, depthTest:false, depthWrite:false}),
             };
         }
         const size = this.squareSize;
@@ -609,14 +609,17 @@ export class Board3D{
             position = new Vector3(0, this.squareTop + 0.0002, 0);
         }
         else{
-            const w = size * 0.36;
+            const w = size * 0.4;
             geometry = new PlaneGeometry(w, w);
-            position = new Vector3(-size / 2 + w * 0.5, this.squareTop + 0.0004, -size / 2 + w * 0.4);
+            position = new Vector3(-size / 2 + w * 0.4, this.squareTop + 0.0004, -size / 2 + w * 0.45);
         }
         geometry.rotateX(-Math.PI / 2);
         const mesh = new Mesh(geometry, this.markMaterials[mark]);
         mesh.position.copy(position);
         mesh.renderOrder = mark === "hero" ? RENDER_ORDER - 1 : mark === "dim" ? 1 : 2;
+        // Not part of the card: its picture isn't put on the mark, and the pointer finds the card only
+        mesh.userData.mark = true;
+        mesh.raycast = ()=>{};
         return mesh;
     }
 
@@ -666,15 +669,15 @@ export class Board3D{
         }));
     }
 
-    // A glowing cyan trapezoid, wider at the bottom, on a dark edge so it shows on any picture
-    private trapezoidTexture():Texture{
-        return this.textures.trapezoid || (this.textures.trapezoid = this.canvasTexture(128, 128, true, (g)=>{
+    // A glowing cyan diamond, tall and narrow, on a dark edge so it shows on any picture
+    private diamondTexture():Texture{
+        return this.textures.diamond || (this.textures.diamond = this.canvasTexture(128, 128, true, (g)=>{
             const shape = ()=>{
                 g.beginPath();
-                g.moveTo(44, 40);
-                g.lineTo(84, 40);
-                g.lineTo(106, 88);
-                g.lineTo(22, 88);
+                g.moveTo(64, 18);
+                g.lineTo(90, 64);
+                g.lineTo(64, 110);
+                g.lineTo(38, 64);
                 g.closePath();
             };
             g.lineJoin = "round";
@@ -1501,9 +1504,10 @@ export class Board3D{
         return object;
     }
 
+    // The card's own meshes take the material; the marks on it keep theirs
     private setMaterial(object:Object3D, material:Material){
         object.traverse((o)=>{
-            if((o as Mesh).isMesh){
+            if((o as Mesh).isMesh && !o.userData.mark){
                 (o as Mesh).material = material;
             }
         });
