@@ -745,7 +745,7 @@ export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:
                          setActivatable(null);
                      }
                  }}/>
-            {inspected ? <div className="match-inspect" aria-live="polite"><CardView card={inspected} scale={0.75}/></div> : null}
+            {inspected ? <div className="match-inspect" aria-live="polite"><CardView card={inspected} scale={0.75} negated={!!inspected.negated}/></div> : null}
             {activatable && activatable.rect ? (
                 <button className="match-activate" style={{left:activatable.rect.left + activatable.rect.width / 2, top:activatable.rect.top + activatable.rect.height / 2}}
                         onPointerLeave={(e)=>{

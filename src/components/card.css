@@ -38,6 +38,8 @@
     z-index: 5;
     text-align: center;
     color: white;
+    /* Always one line: a long name gets a smaller font (CardName) */
+    white-space: nowrap;
 }
 
 /* Fills the top banner from the flag to the right edge, always ending at the right */
@@ -115,4 +117,19 @@
 
 .card-description-line + .card-description-line{
     margin-top: 8px;
+}
+
+/* A red X over the description of a card whose effects are negated */
+.card-negated{
+    position: absolute;
+    top: 445px;
+    left: 20px;
+    width: 360px;
+    height: 200px;
+    z-index: 6;
+    pointer-events: none;
+    background:
+        linear-gradient(to top right, transparent calc(50% - 7px), rgba(224, 50, 43, 0.9) calc(50% - 7px), rgba(224, 50, 43, 0.9) calc(50% + 7px), transparent calc(50% + 7px)),
+        linear-gradient(to bottom right, transparent calc(50% - 7px), rgba(224, 50, 43, 0.9) calc(50% - 7px), rgba(224, 50, 43, 0.9) calc(50% + 7px), transparent calc(50% + 7px));
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
 }

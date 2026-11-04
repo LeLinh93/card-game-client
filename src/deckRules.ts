@@ -1,8 +1,12 @@
 import {Card, Deck, Metadata} from "./api";
 
-// From the Unity client's Config.cs; the server checks the same when a deck is set active
+// From the Unity client's Config.cs; the server checks the same when a deck is saved or set active
 export const MAX_COPIES = 3;
 export const BACKLINE_SIZE = 5;
+
+function copiesProblem(card:Card):string{
+    return "At most " + MAX_COPIES + " copies of " + card.name + ".";
+}
 
 export function isToken(card:Card):boolean{
     return (card.attribute || []).includes("token");
@@ -27,7 +31,7 @@ export function addToDeckProblem(deck:Deck, card:Card, meta:Metadata):string{
         return "The deck is full (" + meta.maxDeckSize + " cards).";
     }
     if(copies(deck, card._id) >= MAX_COPIES){
-        return "At most " + MAX_COPIES + " copies of a card.";
+        return copiesProblem(card);
     }
     return "";
 }
@@ -40,14 +44,22 @@ export function addToBacklineProblem(deck:Deck, card:Card):string{
         return "The backline is full (" + BACKLINE_SIZE + " cards).";
     }
     if(copies(deck, card._id) >= MAX_COPIES){
-        return "At most " + MAX_COPIES + " copies of a card.";
+        return copiesProblem(card);
     }
     return "";
 }
 
-// What still keeps the deck from being played (the server only lets these decks be set active)
-export function deckProblems(deck:Deck, meta:Metadata):string[]{
+// What still keeps the deck from being played (the server only lets these decks be set active).
+// With the card list, too many copies are found as well.
+export function deckProblems(deck:Deck, meta:Metadata, cards:Card[] = []):string[]{
     let problems = [];
+    let byID = new Map(cards.map(c => [c._id, c]));
+    new Set(deck.deck.concat(deck.backline)).forEach((id)=>{
+        let card = byID.get(id);
+        if(card && copies(deck, id) > MAX_COPIES){
+            problems.push(copiesProblem(card));
+        }
+    });
     if(deck.deck.length < meta.minDeckSize){
         problems.push("Needs at least " + meta.minDeckSize + " cards in the deck (" + deck.deck.length + " now).");
     }

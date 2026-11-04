@@ -1,5 +1,6 @@
 import "./card.css";
 import {Card, imageUrl} from "../api";
+import {CardName} from "./CardName";
 import unit from "../img/frame/unit.png";
 import spell from "../img/frame/spell.png";
 import structure from "../img/frame/structure.png";
@@ -26,7 +27,8 @@ function CardDescription(props:{text:string}){
 export type CardFace = Pick<Card, "name" | "type" | "resources" | "description" | "header" | "attack" | "defense" | "health" | "imagePath">;
 
 // A card drawn on the card-website template. It is 400px wide; shrink it with the "scale" prop.
-export function CardView(props:{card:CardFace, scale?:number}){
+// negated: a red X over the whole description (a Unique card whose effects are negated)
+export function CardView(props:{card:CardFace, scale?:number, negated?:boolean}){
     const card = props.card;
     const stats = HAS_STATS.includes(card.type);
     return(
@@ -34,9 +36,10 @@ export function CardView(props:{card:CardFace, scale?:number}){
             <div className="card-rep-holder">
                 <img className="card-rep" src={FRAMES[card.type] || spell} alt=""/>
                 <img className="card-image" src={imageUrl(card.imagePath)} alt=""/>
-                <span className="card-name">{card.name}</span>
+                <CardName name={card.name}/>
                 <span className="card-header">{card.header}</span>
                 <CardDescription text={card.description}/>
+                {props.negated ? <span className="card-negated" role="img" aria-label="Effects negated" title="Effects negated: an earlier copy is on the field"/> : null}
                 <span className="card-resources">{card.resources}</span>
                 {stats ? <span className="card-attack">{card.attack}</span> : null}
                 {stats ? <span className="card-defense">{card.defense}</span> : null}

@@ -385,8 +385,8 @@ export class Board3D{
         let draw:()=>Promise<HTMLCanvasElement> = null;
         if(!card.isHidden && isKnown(card) && card.imagePath){
             const stats = HAS_STATS.includes(card.type) ? {attack:card.attack, defense:card.defense, health:card.health} : null;
-            look = card.imagePath + (stats ? "|" + [stats.attack, stats.defense, stats.health].join("/") : "");
-            draw = stats ? ()=>fieldSquareCanvas(card.imagePath, stats) : ()=>squareCanvas(card.imagePath);
+            look = card.imagePath + (stats ? "|" + [stats.attack, stats.defense, stats.health].join("/") : "") + (card.negated ? "|negated" : "");
+            draw = stats || card.negated ? ()=>fieldSquareCanvas(card.imagePath, stats, !!card.negated) : ()=>squareCanvas(card.imagePath);
         }
         if(fieldCard.look === look){
             return;

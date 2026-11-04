@@ -21,6 +21,8 @@ export interface GameCard{
     summonSick:boolean;
     hero?:boolean;
     buffs:{name:string, source:string, [key:string]:any}[];
+    // A Unique card whose effects are negated by an earlier copy on its field
+    negated?:boolean;
     // Spell and ability cards in the player's hand: whether playing it needs a target, the ids of the
     // field cards it can target now, and what to target ("Target an enemy Unit card")
     needsTarget?:boolean;

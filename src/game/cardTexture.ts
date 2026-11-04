@@ -41,16 +41,22 @@ export function squareCanvas(imagePath:string):Promise<HTMLCanvasElement>{
     });
 }
 
-// A unit or structure on the field: its square picture with its attack, defense and health along
-// the bottom, as they are now
-export function fieldSquareCanvas(imagePath:string, stats:{attack:number, defense:number, health:number}):Promise<HTMLCanvasElement>{
-    return cached("field:" + imagePath + ":" + [stats.attack, stats.defense, stats.health].join("/"), async ()=>{
+// A card on the field: its square picture, for a unit or structure with its attack, defense and health
+// along the bottom, as they are now, and a red X in the top left corner when its effects are negated
+export function fieldSquareCanvas(imagePath:string, stats:{attack:number, defense:number, health:number}, negated = false):Promise<HTMLCanvasElement>{
+    return cached("field:" + imagePath + ":" + (stats ? [stats.attack, stats.defense, stats.health].join("/") : "") + (negated ? ":negated" : ""), async ()=>{
         const picture = await squareCanvas(imagePath);
         await document.fonts.ready;
         const canvas = document.createElement("canvas");
         canvas.width = canvas.height = SQUARE_SIZE;
         const g = canvas.getContext("2d");
         g.drawImage(picture, 0, 0);
+        if(negated){
+            drawNegated(g);
+        }
+        if(!stats){
+            return canvas;
+        }
         const bar = Math.round(SQUARE_SIZE * 0.24);
         g.fillStyle = "rgba(10, 12, 16, 0.78)";
         g.fillRect(0, SQUARE_SIZE - bar, SQUARE_SIZE, bar);
@@ -73,6 +79,22 @@ export function fieldSquareCanvas(imagePath:string, stats:{attack:number, defens
             g.fillText(String(value ?? 0), x, y + 2);
         });
         return canvas;
+    });
+}
+
+// A red X with a dark edge in the top left corner
+function drawNegated(g:CanvasRenderingContext2D){
+    const from = SQUARE_SIZE * 0.06, to = SQUARE_SIZE * 0.2;
+    g.lineCap = "round";
+    [["rgba(0, 0, 0, 0.85)", 14], ["#e0322b", 8]].forEach(([color, width])=>{
+        g.strokeStyle = color as string;
+        g.lineWidth = width as number;
+        g.beginPath();
+        g.moveTo(from, from);
+        g.lineTo(to, to);
+        g.moveTo(to, from);
+        g.lineTo(from, to);
+        g.stroke();
     });
 }
 

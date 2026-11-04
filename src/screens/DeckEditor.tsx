@@ -74,7 +74,7 @@ function DeckList(props:Props & {onOpen:(deck:Deck)=>void}){
             <div className="deck-grid">
                 {session.decks.map((deck)=>{
                     let active = deck._id === session.activeDeck;
-                    let problems = deckProblems(deck, session.meta);
+                    let problems = deckProblems(deck, session.meta, session.cards);
                     return(
                         <div key={deck._id} className={active ? "deck-tile is-active" : "deck-tile"}>
                             <button className="deck-open" onClick={()=>{props.onOpen(deck)}}>
@@ -187,7 +187,7 @@ function EditDeck(props:Props & {deck:Deck, onClose:()=>void}){
     // The deck as rows of "cost, name, copies", sorted by cost then name; the backline one row per card
     const deckRows = groupRows(draft.deck, cardsByID);
     const backlineRows = draft.backline.map(id => ({id, card:cardsByID.get(id), amount:1}));
-    const problems = deckProblems(draft, meta);
+    const problems = deckProblems(draft, meta, session.cards);
 
     return(
         <div className="editor-page">
