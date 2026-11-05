@@ -9,6 +9,7 @@ import {Friend, FriendLists, Lobby} from "./game/lobby";
 const Match = lazy(() => import("./screens/Match").then(m => ({default:m.Match})));
 import {DeckEditor} from "./screens/DeckEditor";
 import {Tab, TopNav} from "./components/TopNav";
+import {useMenuMusic} from "./menuMusic";
 
 // What the player gets when logging in, plus the card data loaded right after
 // (the Unity client's Loading scene, minus the picture download: pictures load from the server)
@@ -46,6 +47,8 @@ export function App(){
     const invited = useRef(false);
     // Set while a deck has unsaved changes, so the header asks before leaving it
     const unsaved = useRef(false);
+    // The menu music plays after login, but not during a match
+    useMenuMusic(!!session && !match);
 
     async function login(username:string, password:string){
         let answer = await api.login(username, password);
