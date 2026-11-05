@@ -4,33 +4,60 @@ import {useEffect} from "react";
 const MENU_MUSIC = "/music/menu.flac";
 const VOLUME = 1;
 
-// One player for the whole page, kept on window so a dev-server reload of this file reuses it
-// instead of starting a second copy over the first
-const page = window as unknown as {menuMusic?:HTMLAudioElement};
+// The song is decoded into memory once and looped there, so it loops without a gap: the plain
+// <audio> loop jumps back in the file and stalls on a big FLAC. Pausing suspends the audio, so it
+// picks up where it stopped. Kept on window so a dev-server reload of this file reuses it instead of
+// starting a second copy over the first.
+interface MenuMusic{
+    context:AudioContext;
+    ready:Promise<void>;
+}
+const page = window as unknown as {menuMusic?:MenuMusic};
 
-// Plays the menu music while "on" is true and pauses it otherwise; it picks up where it stopped.
+function menuMusic():MenuMusic{
+    if(!page.menuMusic){
+        const context = new AudioContext();
+        const ready = fetch(MENU_MUSIC)
+            .then(answer => answer.arrayBuffer())
+            .then(data => context.decodeAudioData(data))
+            .then((song)=>{
+                const volume = context.createGain();
+                volume.gain.value = VOLUME;
+                volume.connect(context.destination);
+                const source = context.createBufferSource();
+                source.buffer = song;
+                source.loop = true;
+                source.connect(volume);
+                source.start();
+            });
+        ready.catch(e => console.warn("The menu music couldn't load", e));
+        page.menuMusic = {context, ready};
+    }
+    return page.menuMusic;
+}
+
+// Plays the menu music while "on" is true and pauses it otherwise.
 // If the browser blocks playing before the player has clicked anything, it starts on the next click or key.
 export function useMenuMusic(on:boolean){
     useEffect(()=>{
         if(!on){
             return;
         }
-        if(!page.menuMusic){
-            page.menuMusic = new Audio(MENU_MUSIC);
-            page.menuMusic.loop = true;
-        }
-        const audio = page.menuMusic;
-        audio.volume = VOLUME;
+        const music = menuMusic();
+        let playing = true;
         const start = ()=>{
-            audio.play().catch(()=>{});
+            if(playing){
+                music.context.resume().catch(()=>{});
+            }
         };
         start();
         window.addEventListener("pointerdown", start, {once:true});
         window.addEventListener("keydown", start, {once:true});
         return ()=>{
+            playing = false;
             window.removeEventListener("pointerdown", start);
             window.removeEventListener("keydown", start);
-            audio.pause();
+            music.context.suspend().catch(()=>{});
         };
     }, [on]);
 }
