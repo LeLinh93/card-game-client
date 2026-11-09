@@ -768,6 +768,8 @@ export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:
         const timer = window.setTimeout(()=>{setLoadingShown(false)}, LOADING_FADE);
         return ()=>{window.clearTimeout(timer)};
     }, [!waiting]);
+    // Nothing else of the match shows over the loading screen
+    const loading = (!!waiting || loadingShown) && !error && !result;
 
     return(
         <div className="match-page" data-mode={props.mode}>
@@ -837,7 +839,8 @@ export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:
             <Hand side="opponent" cards={hands.opponent} backImage={backImage}/>
             <Hand side="player" cards={hands.player} backImage={backImage} heldID={heldID} onCardPointerDown={startDrag}
                   pick={pick && pick.mode === "hand" ? {pickable:pick.cards.map(c => c.id), picked:pick.picked, onToggle:togglePick} : undefined}/>
-            {(waiting || loadingShown) && !error && !result ? <MatchLoading status={waiting} leaving={!waiting}/> : null}
+            {/* Until the match is found, the loading screen has its own button to give up waiting */}
+            {loading ? <MatchLoading status={waiting} leaving={!waiting} onCancel={loaded.match ? undefined : props.onLeave}/> : null}
             {error || result ? (
                 <div className={result ? "match-status match-result" : "match-status"} role="status">
                     {result ? (
@@ -848,9 +851,9 @@ export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:
                     ) : <span className="error">{error}</span>}
                 </div>
             ) : null}
-            {myTurn !== null && !error && !result ? <div className="match-turn">{myTurn ? "Your turn" : "Opponent's turn"}</div> : null}
-            {loaded.match ? <SkillLog entries={skillLog}/> : null}
-            <button className="match-leave" onClick={surrender}>{loaded.match && !result && !error ? "Surrender" : "Leave"}</button>
+            {myTurn !== null && !loading && !error && !result ? <div className="match-turn">{myTurn ? "Your turn" : "Opponent's turn"}</div> : null}
+            {loaded.match && !loading ? <SkillLog entries={skillLog}/> : null}
+            {!loading ? <button className="match-leave" onClick={surrender}>{loaded.match && !result && !error ? "Surrender" : "Leave"}</button> : null}
         </div>
     )
 }

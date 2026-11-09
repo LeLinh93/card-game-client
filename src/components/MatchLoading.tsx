@@ -22,8 +22,8 @@ export const LOADING_FADE = 500;
 
 // The screen over a match until it starts: the loading pictures fading from one to the next, a
 // spinner, what is happening now ("status", e.g. looking for an opponent) and a game tip.
-// "leaving" fades it out.
-export function MatchLoading(props:{status?:string, leaving?:boolean}){
+// "leaving" fades it out; with "onCancel", a Cancel button gives up waiting.
+export function MatchLoading(props:{status?:string, leaving?:boolean, onCancel?:()=>void}){
     const [picture, setPicture] = useState(0);
     const [tip, setTip] = useState(()=>Math.floor(Math.random() * TIPS.length));
 
@@ -45,6 +45,7 @@ export function MatchLoading(props:{status?:string, leaving?:boolean}){
                 <img key={src} className={i === picture ? "match-loading-picture shown" : "match-loading-picture"} src={src} alt=""/>
             ))}
             <div className="match-loading-shade"/>
+            {props.onCancel ? <button className="match-loading-cancel" onClick={props.onCancel}>Cancel</button> : null}
             <div className="match-loading-bar">
                 <span className="match-loading-spinner" aria-hidden="true"/>
                 <div className="match-loading-text">

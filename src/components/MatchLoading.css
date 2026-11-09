@@ -34,6 +34,12 @@
     background: rgba(0, 0, 0, 0.2);
 }
 
+.match-loading-cancel {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+}
+
 /* The spinner and the text along the bottom, over a dark fade so they read on any picture */
 .match-loading-bar {
     position: absolute;
