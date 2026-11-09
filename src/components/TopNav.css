@@ -13,16 +13,6 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
-.topnav-brand {
-    display: flex;
-    align-items: center;
-    margin-right: 28px;
-    font-family: var(--font-display);
-    font-size: 22px;
-    letter-spacing: 0.5px;
-    user-select: none;
-}
-
 .topnav .nav-button {
     position: relative;
     display: flex;
@@ -115,7 +105,7 @@
         padding: 0 8px;
     }
 
-    .topnav-brand, .topnav-user {
+    .topnav-user {
         display: none;
     }
 

@@ -10,7 +10,6 @@ const TABS:{tab:Tab, label:string}[] = [{tab:"home", label:"Home"}, {tab:"decks"
 export function TopNav(props:{tab:Tab, username:string, alerts?:Partial<Record<Tab, string>>, onTab:(tab:Tab)=>void, onLogout:()=>void}){
     return(
         <nav className="topnav">
-            <div className="topnav-brand">Defender</div>
             {TABS.map(({tab, label})=>(
                 <button key={tab} className={tab === props.tab ? "nav-button active" : "nav-button"}
                         aria-current={tab === props.tab ? "page" : undefined}
