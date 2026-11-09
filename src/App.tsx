@@ -10,6 +10,7 @@ const Match = lazy(() => import("./screens/Match").then(m => ({default:m.Match})
 import {DeckEditor} from "./screens/DeckEditor";
 import {Tab, TopNav} from "./components/TopNav";
 import {useMenuMusic} from "./menuMusic";
+import {MatchLoading} from "./components/MatchLoading";
 
 // What the player gets when logging in, plus the card data loaded right after
 // (the Unity client's Loading scene, minus the picture download: pictures load from the server)
@@ -144,7 +145,7 @@ export function App(){
         return <Login onLogin={login} notice={notice}/>;
     }
     if(match){
-        return <Suspense><Match mode={match.mode} friend={match.friend} token={session.token} onLeave={()=>{setMatch(null)}}/></Suspense>;
+        return <Suspense fallback={<div style={{position:"relative", height:"100%"}}><MatchLoading/></div>}><Match mode={match.mode} friend={match.friend} token={session.token} onLeave={()=>{setMatch(null)}}/></Suspense>;
     }
     const requests = friends ? friends.requests.length : 0;
     return(

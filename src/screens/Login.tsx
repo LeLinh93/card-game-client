@@ -1,6 +1,5 @@
 import {FormEvent, useState} from "react";
 import "./Login.css";
-import title from "../img/ui/title.png";
 
 // The Unity login scene: the title art with a username, a password and a login button
 export function Login(props:{onLogin:(username:string, password:string)=>Promise<void>, notice:string}){
@@ -25,7 +24,7 @@ export function Login(props:{onLogin:(username:string, password:string)=>Promise
 
     return(
         <div className="login-page">
-            <img className="login-title" src={title} alt="Defender trading card game"/>
+            <img className="login-background" src="/image/login.png" alt=""/>
             <form className="login-form" onSubmit={submit}>
                 {props.notice ? <p className="login-notice">{props.notice}</p> : null}
                 <input type="text" placeholder="Username" aria-label="Username" autoComplete="username" autoFocus

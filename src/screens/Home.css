@@ -5,19 +5,23 @@
     overflow: hidden;
 }
 
-.home-title {
+/* public/image/menu.png, then menu_loop2.mp4 over it, fill the screen; the Play panel slides over them */
+.home-background {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    object-position: center top;
+    object-fit: cover;
     pointer-events: none;
-    transition: width 0.35s ease;
 }
 
-.panel-open .home-title {
-    width: calc(100% - var(--panel-width));
+.home-video {
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+
+.home-video.ready {
+    opacity: 1;
 }
 
 /* play panel: slides out from the right on the first Play ---------------------------------- */
@@ -257,8 +261,7 @@
         --panel-width: 100%;
     }
 
-    .panel-open .home-title {
-        width: 100%;
+    .panel-open .home-background {
         opacity: 0.15;
     }
 

@@ -2,7 +2,6 @@ import {useEffect, useState} from "react";
 import "./Home.css";
 import {Session} from "../App";
 import {Friend} from "../game/lobby";
-import title from "../img/ui/title.png";
 
 export type Mode = "free" | "bot" | "friend";
 
@@ -37,6 +36,8 @@ export function Home(props:{session:Session, friends:Friend[], onDecks:()=>void,
         setOpen(false);
     }
 
+    const [videoReady, setVideoReady] = useState(false);
+
     function play(){
         if(!open){
             return setOpen(true);
@@ -46,7 +47,11 @@ export function Home(props:{session:Session, friends:Friend[], onDecks:()=>void,
 
     return(
         <div className={open ? "home-page panel-open" : "home-page"}>
-            <img className="home-title" src={title} alt="Defender trading card game"/>
+            {/* The picture shows until the looping video can play, then the video fades in over it */}
+            <img className="home-background" src="/image/menu.png" alt=""/>
+            <video className={videoReady ? "home-background home-video ready" : "home-background home-video"}
+                   src="/image/menu_loop2.mp4" autoPlay muted loop playsInline aria-hidden="true"
+                   onPlaying={()=>{setVideoReady(true)}}/>
 
             <aside className="play-panel panel" aria-hidden={!open} inert={!open}>
                 <div className="play-panel-head">

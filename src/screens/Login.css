@@ -4,14 +4,13 @@
     overflow: hidden;
 }
 
-/* title.png is a 1920x1080 picture: the logo top left, a fan of cards in the middle */
-.login-title {
+/* public/image/login.png fills the screen; the edges are cut off on other shapes than 16:9 */
+.login-background {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    object-position: center top;
+    object-fit: cover;
     pointer-events: none;
 }
 

@@ -11,9 +11,13 @@ import {CardPicker} from "../components/CardPicker";
 import {SkillLog, SkillLogEntry} from "../components/SkillLog";
 import {GraveyardList} from "../components/GraveyardList";
 import {Mode} from "./Home";
+import {LOADING_FADE, MatchLoading} from "../components/MatchLoading";
+import {cardCanvas, squareCanvas} from "../game/cardTexture";
 
 // Time between two cards leaving the deck when several are drawn in a row
 const DRAW_GAP = 160;
+// The longest the loading screen waits for the opening cards' pictures
+const OPENING_WAIT_LIMIT = 10000;
 // Time between two comets when several cards go to a graveyard at once
 const COMET_GAP = 90;
 // How long to wait for the server's answer to a sacrifice or summon before taking the card back
@@ -107,7 +111,9 @@ function canTarget(attacker:GameCard, target:GameCard, state:PlayerState):boolea
 // friend: in a friend match, the friend whose invite was accepted
 export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:string, onLeave:()=>void}){
     const mount = useRef<HTMLDivElement>(null);
-    const [loaded, setLoaded] = useState({scene:false, match:false});
+    const [loaded, setLoaded] = useState({scene:false, match:false, started:false});
+    // The loading screen stays while it fades away after the match starts
+    const [loadingShown, setLoadingShown] = useState(true);
     const [error, setError] = useState("");
     const [hands, setHands] = useState<Hands>({player:[], opponent:[]});
     const [backImage, setBackImage] = useState("");
@@ -216,6 +222,18 @@ export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:
             }
         };
 
+        // Draws the pictures the opening needs ahead: the player's hand (the 3D cards flying in) and
+        // the known cards set in the backlines; a picture that takes too long is drawn when it is needed
+        const prepareOpening = (msg:StartGameMessage)=>{
+            const pictures:Promise<unknown>[] = [];
+            msg.player.hand.filter(isKnown).forEach((card)=>{pictures.push(cardCanvas(card))});
+            msg.player.backline.concat(msg.opponent.backline).filter(card => card && isKnown(card) && card.imagePath).forEach((card)=>{
+                pictures.push(squareCanvas(card.imagePath));
+            });
+            const all = Promise.all(pictures.map(p => p.catch(()=>{})));
+            return Promise.race([all, wait(OPENING_WAIT_LIMIT)]);
+        };
+
         // The card takes its place in the hand, hidden, and the 3D card flies there; the next
         // action starts while it is still in the air
         const draw = (side:Side, card:GameCard)=>{
@@ -236,6 +254,15 @@ export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:
         // The server drew the opening hands before sending them: the back rows are laid out from the
         // decks first, then the hands fly in one by one
         c.on("startGame", (msg:StartGameMessage)=>{
+            // The loading screen stays until the opening cards' pictures are drawn, so the hands
+            // fly in as soon as it fades
+            queue.add(async ()=>{
+                await prepareOpening(msg);
+                if(!left){
+                    setLoaded(l => ({...l, started:true}));
+                    await wait(LOADING_FADE);
+                }
+            });
             queue.add(async ()=>{
                 setMyTurn(msg.isTurn);
                 turn.current = msg.isTurn;
@@ -733,7 +760,14 @@ export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:
         }
     }
 
-    const waiting = !loaded.scene ? "Loading the play area…" : !loaded.match ? (props.mode === "free" ? "Looking for an opponent…" : props.friend ? "Waiting for " + props.friend.name + "…" : "Starting the match…") : "";
+    const waiting = !loaded.scene ? "Loading the match…" : !loaded.match ? (props.mode === "free" ? "Looking for an opponent…" : props.friend ? "Waiting for " + props.friend.name + "…" : "Starting the match…") : !loaded.started ? "Shuffling the decks…" : "";
+    useEffect(()=>{
+        if(waiting){
+            return;
+        }
+        const timer = window.setTimeout(()=>{setLoadingShown(false)}, LOADING_FADE);
+        return ()=>{window.clearTimeout(timer)};
+    }, [!waiting]);
 
     return(
         <div className="match-page" data-mode={props.mode}>
@@ -803,14 +837,15 @@ export function Match(props:{mode:Mode, friend?:{id:string, name:string}, token:
             <Hand side="opponent" cards={hands.opponent} backImage={backImage}/>
             <Hand side="player" cards={hands.player} backImage={backImage} heldID={heldID} onCardPointerDown={startDrag}
                   pick={pick && pick.mode === "hand" ? {pickable:pick.cards.map(c => c.id), picked:pick.picked, onToggle:togglePick} : undefined}/>
-            {waiting || error || result ? (
+            {(waiting || loadingShown) && !error && !result ? <MatchLoading status={waiting} leaving={!waiting}/> : null}
+            {error || result ? (
                 <div className={result ? "match-status match-result" : "match-status"} role="status">
                     {result ? (
                         <div className="match-result-box panel">
                             <span className={"match-result-text " + result}>{result === "won" ? "Victory" : "Defeat"}</span>
                             <button className="primary" onClick={props.onLeave}>Back to menu</button>
                         </div>
-                    ) : error ? <span className="error">{error}</span> : waiting}
+                    ) : <span className="error">{error}</span>}
                 </div>
             ) : null}
             {myTurn !== null && !error && !result ? <div className="match-turn">{myTurn ? "Your turn" : "Opponent's turn"}</div> : null}

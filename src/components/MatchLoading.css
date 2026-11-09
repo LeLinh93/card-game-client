@@ -1,0 +1,103 @@
+.match-loading {
+    z-index: 6;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #050608;
+    transition: opacity ease;
+}
+
+.match-loading.leaving {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* The pictures fill the screen and cross-fade */
+.match-loading-picture {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+
+.match-loading-picture.shown {
+    opacity: 1;
+}
+
+/* Darkens the pictures a little */
+.match-loading-shade {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* The spinner and the text along the bottom, over a dark fade so they read on any picture */
+.match-loading-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 60px 24px 36px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.6) 60%, transparent);
+}
+
+.match-loading-spinner {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--accent);
+    animation: match-loading-spin 0.9s linear infinite;
+}
+
+@keyframes match-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.match-loading-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 720px;
+}
+
+.match-loading-status {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.match-loading-tip {
+    font-family: var(--font-display);
+    font-size: 22px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+    animation: match-loading-tip-in 0.5s ease;
+}
+
+.match-loading-tip b {
+    color: var(--accent);
+    font-weight: normal;
+}
+
+@keyframes match-loading-tip-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+@media (max-width: 700px) {
+    .match-loading-tip {
+        font-size: 17px;
+    }
+}
