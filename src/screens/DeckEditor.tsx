@@ -66,7 +66,7 @@ function DeckList(props:Props & {onOpen:(deck:Deck)=>void}){
     }
 
     return(
-        <div className="decks-page">
+        <div className="decks-page menu-backdrop">
             <header className="decks-header">
                 <h1>Decks</h1>
             </header>

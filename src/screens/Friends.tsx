@@ -19,7 +19,7 @@ export function Friends(props:{lists:FriendLists, notice:{ok:boolean, message:st
 
     const online = lists ? lists.friends.filter(f => f.online).length : 0;
     return(
-        <div className="friends-page">
+        <div className="friends-page menu-backdrop">
             <section className="friends-box panel">
                 <h2>Add a friend</h2>
                 <form className="friends-add" onSubmit={add}>
